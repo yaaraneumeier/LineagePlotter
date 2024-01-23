@@ -1,6 +1,6 @@
 func.print.lineage.tree <- function(conf_yaml_path,
                                     width=170,height= 60,laderize_flag=FALSE,simulate.p.value=TRUE,
-                                    man_adjust_elipse=-0.005, man_multiply_elipse= 1.3,
+                                    man_adjust_elipse=0.005, man_multiply_elipse= 1.3,
                                     man_adj_second_legend= 0,man_space_second_legend = -0.02,
                                    add_date_to_text_flag=TRUE,
                                     man_adjust_image_of_second_legend=0, man_adj_heat_loc=0,man_boot_x_offset=0,
@@ -16,33 +16,56 @@ func.print.lineage.tree <- function(conf_yaml_path,
                                    man_multiply_first_legend_text= 1,
                                    man_multiply_first_legend_title_size=1,
                                    man_space_second_legend_multiplier=1,
-                                   man_offset_for_highlight_legend_x=0) {
+                                   man_offset_for_highlight_legend_x=0,
+                                   a_4_output=FALSE,
+                                   man_adjust_elipse_a=0,
+                                   man_adjust_elipse_b=0,
+                                   tree_path_list_bash= NA,
+                                   csv_path_bash= NA,
+                                  out_path_bash= NA,
+                                  out_file_name_bash=NA,
+                                  out_file_type= NA,
+                                   heat_maps_titles_angles_vector= NA,
+                                   man_offset_second_legend=0) {
   
     yaml_file<- func.read_yaml(conf_yaml_path)
     
     #get configuration from yaml file
+    
     
 
     
     out_list<-c()
     out_index <-1
     
-    if (debug_mode== TRUE) {
-        print("##DEBUG##")
-        print("yaml is")
-        print(yaml_file)
+
+    units_out <- 'cm'
+    if (a_4_output== TRUE) {
+        print("output in A4 format")
+        width <- 297
+        height <- 210
+        units_out <-  "mm"
+        man_multiply_second_legend_text <- 0.34
+        man_multiply_first_legend_title_size <- 0.25
         
     }
-    
-    
+
 
     individual<- yaml_file[['Individual general definitions']]$Individual
     
     if (is.na(individual)) {
         stop("Missing individual name")
     }
-
-    csv_path<- yaml_file[['Individual general definitions']]$'mapping csv file'
+    
+    if (is.na(csv_path_bash)) {
+        print("Use csv_path from yaml")
+        csv_path<- yaml_file[['Individual general definitions']]$'mapping csv file'
+    } else {
+        csv_path<- csv_path_bash
+        print("Use csv_path_bash")
+    }
+    
+    
     
     if(is.na(csv_path)) {
         stop("Missing csv file")
@@ -51,17 +74,27 @@ func.print.lineage.tree <- function(conf_yaml_path,
     #get csv file for mapping subgroups
     print(paste0("Get mapping csv from: ",csv_path))
     readfile <- read.csv(csv_path)
+
     
 
 
     tree_path_list<- yaml_file[['Individual general definitions']]$'tree path'
 
     title.id <- yaml_file[['Mapping exl renaming titles']]$'ID column'
+
     
     if (debug_mode== TRUE) {
         print("title.id")
         print(title.id)
         
+    }
+    
+    #print(tree_path_list_bash )
+    if (is.na(tree_path_list_bash)) {
+        print("Use tree_path from yaml")
+    } else {
+        print("Use tree_path_list_bash")
+        tree_path_list<- tree_path_list_bash
     }
     
     
@@ -73,6 +106,14 @@ func.print.lineage.tree <- function(conf_yaml_path,
     flag_short_tips <- yaml_file[['visual definitions']]$'trim tips'$'display'
     tips_length <- as.numeric(yaml_file[['visual definitions']]$'trim tips'$'length')
     path_base <- yaml_file[['Individual general definitions']]$out_file$base_path
+    
+    if (is.na(out_path_bash)) {
+        print("Use path_base from yaml for output path")
+        
+    } else {
+        path_base<- out_path_bash
+        print("Use out_path_bash for output path")
+    }
     
     
     edge_width_multiplier<-yaml_file[['visual definitions']]$'edge_width_multiplier'$'size'
@@ -111,6 +152,15 @@ func.print.lineage.tree <- function(conf_yaml_path,
     if (is.na(size_font_legend_box)) {
         size_font_heat_map_text <- 25
     }
+    
+    size_font_heat_map_legend <- yaml_file[['visual definitions']]$'font_size'$'heat_map_legend' 
+    if (length(size_font_heat_map_legend)==0){
+        size_font_heat_map_legend <- size_tip_text *1.6
+        }
+    if (is.na(size_font_heat_map_legend)) {
+        size_font_heat_map_legend <- size_tip_text *1.6
+    }
+    
 
     
     for (tree_index in 1:trees_number) {
@@ -120,6 +170,7 @@ func.print.lineage.tree <- function(conf_yaml_path,
         ###get newick file and create tree
         print(paste0("Get tree from: ",tree_path))
         tree440 <- read.tree(tree_path)
+        print(tree440)
         
         print(paste0("Individual name is ",individual))
 
@@ -127,11 +178,23 @@ func.print.lineage.tree <- function(conf_yaml_path,
             print("individual is")
             print(individual)
         }
+        
+
+        
+        
         if ("individual" %in% names(readfile)) {
             idv_title <- "individual"
         } else {
             idv_title <- "Individual"
         }
+        
+        
+        
+        print("individuals list in csv:")
+        list_individuals= unique(readfile[[idv_title]])
+        print(list_individuals)
+
+        str= paste0("choosing only columns with individual= ",individual)
 
         #make subframe for the data of specific individual
         if (idv_title %in% names(readfile)) {   
@@ -141,17 +204,11 @@ func.print.lineage.tree <- function(conf_yaml_path,
         }
         
 
-    
-        if (debug_mode== TRUE) {
-            print("##DEBUG##")
-            print("readfile440 is")
-            print(readfile440)
-        }
         
         ids_list<-readfile440[[title.id]]
         
         if (debug_mode== TRUE) {
-            print(readfile440)
+   
             print("title.id is")
             print(title.id)
             print("ids_list from csv is")
@@ -159,12 +216,14 @@ func.print.lineage.tree <- function(conf_yaml_path,
         }
         
         readfile440 <- fix.readfile440.with.missing.leaves(readfile440,title.id,tree440,ids_list,"na",
-                                                           id_tip_trim_flag,id_tip_trim_start,id_tip_trim_end)
+                                                           id_tip_trim_flag,id_tip_trim_start,id_tip_trim_end,id_tip_prefix,debug_mode)
         
         if (debug_mode==TRUE){
-            print("readfile440 is is")
+            print("readfile440 is ")
             print(readfile440)
         }
+        
+
         
 
         
@@ -216,6 +275,11 @@ func.print.lineage.tree <- function(conf_yaml_path,
         } else {
             show_boot_flag <- FALSE
         }
+        boot_values <- yaml_file[['visual definitions']]$'Bootstrap'
+        if (! 'format' %in% names(boot_values)) {
+            boot_values$'format' <- 'triangles'
+            yaml_file[['visual definitions']]$'Bootstrap'$'format' <- 'triangles'
+        }
         
         if (! 'classification' %in% keys_visual) {
             stop("Missing classification in yaml")
@@ -235,6 +299,8 @@ func.print.lineage.tree <- function(conf_yaml_path,
             ind1<- as.character(disp_index)
             att1 <- names(ttt[[ind1]])
             heat_map_title <- ""
+            
+
             
             disp_indx_ch <- as.character(disp_index)
             
@@ -264,31 +330,48 @@ func.print.lineage.tree <- function(conf_yaml_path,
             
             if ('heatmap_display' %in% att1) {
                 
+                
                 heat_definitions <- yaml_file[['visual definitions']]$'classification'[[disp_index]][[disp_indx_ch]]$heatmap_display
                 heat_list_len <- length(heat_definitions)
                 dxdf440_for_heat <- c()
                 
- 
 
+                indx_for_sav <-0
                 for (inx in 1:heat_list_len) {
+                    
       
                     
                     ind <- as.character(inx)
                     heat_map_i_def <- heat_definitions[[inx]][[ind]]
+                    
+
 
                     att2 <- heat_map_i_def$display
 
                     
+                    if (func.check.bin.val.from.conf(att2)== TRUE) {
+                        indx_for_sav <- indx_for_sav+1
+                        } else {
+                        next
+                    }
+
+                    
                     param<- c()
                     if (func.check.bin.val.from.conf(att2)== TRUE) {
+
+
                         
                         if ('is_discrete' %in% names(heat_map_i_def)) {
+                       
                              param['is_discrete'] <- func.check.bin.val.from.conf(heat_map_i_def$is_discrete)
+
                         } else {
                             param['is_discrete'] <- FALSE
                         } 
+   
                         
                         if (param['is_discrete']== TRUE) {
+                    
                             if ('man_define_colors' %in% names(heat_map_i_def)) {
                                     param['man_define_colors'] <- func.check.bin.val.from.conf(heat_map_i_def$man_define_colors)
                             } else {
@@ -302,6 +385,9 @@ func.print.lineage.tree <- function(conf_yaml_path,
                             } else {
                                 param['color_scale_option'] <- 'B'
                             }
+                            
+
+                            
                             if ('color_scale_range_start' %in% names(heat_map_i_def)) {
                                 param['man'] <- TRUE
                                 param['color_scale_range_start'] <- as.numeric(heat_map_i_def$color_scale_range_start)
@@ -315,9 +401,34 @@ func.print.lineage.tree <- function(conf_yaml_path,
                             }
                             
                         } else {
-                            param['low'] <- "beige"
-                            param['mid'] <- "seashell2"
-                            param['high'] <- "firebrick4"
+                            
+                            ll <- "beige"
+                            mm <- "seashell2"
+                            hh <- "firebrick4"
+                           if ('man_define_colors' %in% names(heat_map_i_def)) {
+                               
+                                    param['man_define_colors'] <- func.check.bin.val.from.conf(heat_map_i_def$man_define_colors)
+                            } else {
+                               
+                                    param['man_define_colors'] <- FALSE
+                            }
+                            if (param['man_define_colors']== TRUE) {
+                                
+                                if ('color_scale_option' %in% names(heat_map_i_def)) {
+                                   colors_man_list_from_yml <- heat_map_i_def['color_scale_option'] 
+                                    if (length(colors_man_list_from_yml) >3) {
+                                        colors_man_list_from_yml <- colors_man_list_from_yml[1:3]
+                                    }
+                                    if (length(colors_man_list_from_yml) ==3) {
+                                        ll <- colors_man_list_from_yml[1]
+                                        mm <- colors_man_list_from_yml[2]
+                                        hh <- colors_man_list_from_yml[3]
+                                    }
+                                }
+                            }
+                            param['low'] <- ll
+                            param['mid'] <- mm
+                            param['high'] <- hh
                             param['midpoint']<- .02
                             if ('low' %in% names(heat_map_i_def)) {
                                 param['low'] <-heat_map_i_def$low
@@ -331,12 +442,14 @@ func.print.lineage.tree <- function(conf_yaml_path,
                             if ('midpoint' %in% names(heat_map_i_def)) {
                                 param['midpoint'] <-as.numeric(heat_map_i_def$midpoint)
                             }
-                        }
+                            
+                        } 
   
-
+ 
          
-                        heat_display_params_list[[inx]] <- param
+                        heat_display_params_list[[indx_for_sav]] <- param
                         
+  
                         
                         
                         heat_display_vec <- c(heat_display_vec, TRUE)
@@ -345,6 +458,9 @@ func.print.lineage.tree <- function(conf_yaml_path,
                         heat_map_title <- heat_map_i_def$title
                         heat_map_title_list <- c(heat_map_title_list,heat_map_title)
                         l_titles_for_heat <- c()
+                        
+
+                        
                         ind <-1
                         for (j in acc_heat_list) {
 
@@ -354,11 +470,12 @@ func.print.lineage.tree <- function(conf_yaml_path,
                             j2<- j[[j1]]
 
                             l_titles_for_heat <- c(l_titles_for_heat,j2)
-                        }
+                        } 
                         
                         
               
                         df_heat_temp <-readfile440[, c(title.id,l_titles_for_heat)]
+                        
                   
                         g_check <- ggtree(tree440)$data
                         g_check_tip <- subset(g_check,isTip==TRUE)
@@ -370,13 +487,14 @@ func.print.lineage.tree <- function(conf_yaml_path,
                         
                         
                         df_heat_temp <- df_heat_temp[match(tip_list, df_heat_temp[[title.id]]),]
-               
+                           
                         
                          if (id_tip_trim_flag== TRUE) {
                               rownames(df_heat_temp) <- paste0(id_tip_prefix,df_heat_temp[[title.id]])
                              } else {
                              rownames(df_heat_temp) <- paste0("",df_heat_temp[[title.id]])
                          }
+                        
                        
            
                         if (length(l_titles_for_heat)>1) {
@@ -389,27 +507,45 @@ func.print.lineage.tree <- function(conf_yaml_path,
                             df_heat_temp <- df_heat_temp[ -c(2) ]
                            
                         }
-                
                         
-                        dxdf440_for_heat[[inx]] <- df_heat_temp  
+                        
+                        dxdf440_for_heat[[indx_for_sav]] <- df_heat_temp  
                        
                     } else {
+                        
                         heat_display_vec <- c(heat_display_vec, FALSE)
                     }
-                    temp <- dxdf440_for_heat[[inx]]
+                    temp <- dxdf440_for_heat[[indx_for_sav]]
                     
                     
                     
                     if ("with" %in% names(heat_map_i_def)) {
                         
+                        
+                        
                         with_title <- heat_map_i_def$with$title
                         with_value <- heat_map_i_def$with$value
+                        
+                        
+                        if (( with_title %in% colnames(readfile440))) {
+                            
+                            } else {
+                            print(paste0("Error: missing  column in csv file ", with_title))
+                        }
+                        
                         col_with <- readfile440[, with_title]
-              
+                        
+ 
+
                   
                         for (col_index in colnames(temp)) {
                             
                             old_col <- temp[,col_index]
+
+                            if (length(col_with) < length(old_col) ) {
+                                gap <- length(old_col) - length(col_with)
+                                col_with <- c(col_with, rep(NA,gap))
+                            }
                         
                             new_col <-c()
                             for (row_index in 1:length(old_col)) {
@@ -423,7 +559,7 @@ func.print.lineage.tree <- function(conf_yaml_path,
                         temp[,col_index] <- new_col
                         
                         }
-                    dxdf440_for_heat[[inx]] <- temp
+                    dxdf440_for_heat[[indx_for_sav]] <- temp
 
                     }
 
@@ -431,8 +567,8 @@ func.print.lineage.tree <- function(conf_yaml_path,
             
             }
             
-            
-            
+
+
             how_many_hi <- 0
         
             
@@ -443,6 +579,7 @@ func.print.lineage.tree <- function(conf_yaml_path,
                 hi<- hi_def$display
  
                 if (func.check.bin.val.from.conf(hi)== FALSE) {
+                    
                     #no highlight
                 } else {
                     FLAG_BULK_DISPLAY <- TRUE
@@ -505,13 +642,14 @@ func.print.lineage.tree <- function(conf_yaml_path,
                 print("##DEBUG##")
                 print("disp_index is")
                 print(disp_index)
-                print("cls_list=")
-                print(cls_list)
+
 
         
             }
             
             tree_data <- ggtree(tree440)$data
+            
+
             leaves_id_from_tree1 <- tree_data[tree_data$isTip==TRUE,'label']
             leaves_id_from_tree <- as.list(leaves_id_from_tree1['label'])$label
             
@@ -543,12 +681,13 @@ func.print.lineage.tree <- function(conf_yaml_path,
                 }
 
             }
+            
+
 
             
             non_cluster_color <- yaml_file[['visual definitions']]$'classification'[[disp_index]][[disp_indx_ch]]$'non_cluster_color'
             colors_scale1 <- c(colors_scale1,non_cluster_color)
-            
-            #print(yaml_file[['visual definitions']]$'classification'[[disp_index]])
+
             
             na_name <- yaml_file[['visual definitions']]$'classification'[[disp_index]][[disp_indx_ch]]$'na_name'
             if (is.null(na_name)) {
@@ -575,8 +714,7 @@ func.print.lineage.tree <- function(conf_yaml_path,
                 
             }
             
-    
-            
+
             readfile440 <- readfile440[readfile440[[title.id]] %in% leaves_id_from_tree_num, ]
             
        
@@ -585,8 +723,7 @@ func.print.lineage.tree <- function(conf_yaml_path,
 
 
             index_id <- which(co_nam==title.id)
-            #print("index_id is")
-            #print(index_id)
+
 
             colnames(readfile440)[index_id] <- "Sample.Reads.ID"
             
@@ -623,6 +760,13 @@ func.print.lineage.tree <- function(conf_yaml_path,
             out_start <- yaml_file[['Individual general definitions']]$out_file$'optional text at beggining'
             out_end <- yaml_file[['Individual general definitions']]$out_file$'optional text at end'
             file_type <- yaml_file[['Individual general definitions']]$out_file$'file_type'
+            
+            if (is.na(out_file_type)) {
+                
+            } else {
+                file_type <- out_file_type
+                print("use file type from out_file_type parameter: ", file_type)
+            }
         
             if (flag_short_tips == TRUE) {
                 tips_string <- "tips_normalized"
@@ -671,6 +815,18 @@ func.print.lineage.tree <- function(conf_yaml_path,
             
             }
             
+            if (is.na(out_file_name_bash)) {
+                print("use out_file_path from yaml")
+            } else {
+                print("use out_file_name_bash for output file name")
+                out_file_path <- paste0(path_base,out_file_name_bash) 
+                out_file_path <- paste0(out_file_path,"_")
+                out_file_path <- paste0(out_file_path,disp_index)
+                out_file_path <- paste0(out_file_path,"_")
+                out_file_path <- paste0(out_file_path,out_index)
+            }
+           
+            
             
             
             ooo <- str_split(out_file_path," ")
@@ -699,16 +855,7 @@ func.print.lineage.tree <- function(conf_yaml_path,
             out_file_path <- ooo1
         
   
-        
-        #if (FLAG_BULK_DISPLAY== TRUE) {
-        #    print("A")
-        #    man_space_second_legend_multiplier<- man_space_second_legend_multiplier
-          
 
-        #    man_space_second_legend<- man_space_second_legend*3
-
-        #}
-        
         
         
             out_file_path <- paste(out_file_path,'.',file_type, sep = '')
@@ -721,56 +868,7 @@ func.print.lineage.tree <- function(conf_yaml_path,
             
             
            
-            if (heat_flag == FALSE) {
-                
-                func.make.plot.tree.NEW(
-                    tree440 = tree440,
-                    dx_rx_types1_short = dx_rx_types1_short,
-                    #classication =classication,
-                    list_id_by_class= list_id_by_class,
-                    dxdf440_dataf= dxdf440_dataf,
-                    title.id=title.id,
-                    FDR_perc=FDR_perc,
-                    no_name= no_name,
-                    rotate_flag = rotate_flag,
-                    rotation_params1= rotation_params1,
-                    rotation_params2= rotation_params2,
-                    flag_short_tips = flag_short_tips, 
-                    tips_length = tips_length,
-                    show_boot_flag = show_boot_flag,
-                    FLAG_BULK_DISPLAY = FLAG_BULK_DISPLAY,
-                    how_many_hi = how_many_hi,
-                    high_label_list = high_label_list,
-                    high_color_list = high_color_list,
-                    high_title_list = high_title_list,
-                    lists_list_hi = lists_list_hi,
-                    simulate.p.value= simulate.p.value,
-                    width= width,
-                    height= height,
-                    colors_scale1 = colors_scale1,
-                    out_file_path = out_file_path,
-                    edge_width_multiplier = edge_width_multiplier,
-                    size_tip_text= size_tip_text,
-                    size_font_legend_title= size_font_legend_title,
-                    size_font_legend_text = size_font_legend_text,
-                    size_font_legend_box= size_font_legend_box,
-                    labels_not_in_legend= labels_not_in_legend,
-                    no_name_color="black",
-                    debug_mode= debug_mode,
-                    man_adjust_elipse= man_adjust_elipse,
-                    man_multiply_elipse= man_multiply_elipse,
-                    man_adj_second_legend= man_adj_second_legend,
-                    man_space_second_legend= -0.02,
-                    laderize_flag=FALSE, 
-                    cls_renaming_list <- cls_renaming_list,
-                    title_flag = TRUE,
-                    title_replace = title_replace,
-                    flag_classification_format=FALSE,
-                    id_tip_trim_flag, 
-                    id_tip_trim_start,
-                    id_tip_trim_end
-                    )
-            } else {
+            
                 
                 func.make.plot.tree.heat.NEW(
                     tree440 = tree440,
@@ -835,9 +933,16 @@ func.print.lineage.tree <- function(conf_yaml_path,
                     man_multiply_first_legend_text,
                     man_multiply_first_legend_title_size,
                     man_space_second_legend_multiplier,
-                    man_offset_for_highlight_legend_x
+                    man_offset_for_highlight_legend_x,
+                    units_out,
+                    size_font_heat_map_legend= size_font_heat_map_legend,
+                    man_adjust_elipse_a,
+                    man_adjust_elipse_b,
+                    heat_maps_titles_angles_vector,
+                    boot_values,
+                    man_offset_second_legend
                     )
-            }
+           # }
             
         out_list[[out_index]] <- out_file_path
         out_index <- out_index+1   
@@ -853,8 +958,6 @@ func.print.lineage.tree <- function(conf_yaml_path,
 
 #close func  
 }
-
-
 
 
 func.make.leaves_id_ordered_for_df440 <- function(leaves_id_from_tree1,dxdf440_dataf,title.id,id_tip_trim_flag,id_tip_prefix) {
@@ -881,8 +984,6 @@ func.make.leaves_id_ordered_for_df440 <- function(leaves_id_from_tree1,dxdf440_d
 
     leaves_id_ordered_for_df440 <- leaves_id_ordered_for_df440
 }
-
-
 
 func.make.plot.tree.heat.NEW <- function( tree440,
                     dx_rx_types1_short,
@@ -945,7 +1046,14 @@ func.make.plot.tree.heat.NEW <- function( tree440,
                     man_multiply_first_legend_text,
                     man_multiply_first_legend_title_size,
                     man_space_second_legend_multiplier,
-                    man_offset_for_highlight_legend_x) {
+                    man_offset_for_highlight_legend_x,
+                                        units_out,
+                                        size_font_heat_map_legend,
+                                        man_adjust_elipse_a,
+                                        man_adjust_elipse_b,
+                                        heat_maps_titles_angles_vector,
+                                        boot_values,
+                                        man_offset_second_legend) {
     
 
     
@@ -1033,7 +1141,7 @@ func.make.plot.tree.heat.NEW <- function( tree440,
 
     
     tree_with_group_CPY <- groupOTU(tree440, list_rename_by_class)
-    
+    #debug_tree <- tree_with_group_CPY
     
     
     levels_groups <- levels(ggtree(tree_with_group_CPY)$data$group)
@@ -1045,10 +1153,11 @@ func.make.plot.tree.heat.NEW <- function( tree440,
     tree_TRY <- ggtree(tree_with_group_CPY,aes(color=new_class, size=p_val_new),ladderize=laderize_flag,
                   ) #size=p_val
     
-  test_fig <- tree_TRY
+    test_fig <- tree_TRY
     
     
-     new_colors_list<- func.create.new_colors_list(FDR_perc,tree_TRY,tree_with_group,no_name,tree_size)
+    new_colors_list<- func.create.new_colors_list(FDR_perc,tree_TRY,tree_with_group,no_name,tree_size)
+
     
     if (no_name %in% new_colors_list) {
         flag_no_name <- 1
@@ -1072,20 +1181,28 @@ func.make.plot.tree.heat.NEW <- function( tree440,
     
     p_PAIRS_pval_list <- func.create.p_val_list_FROM_LIST(FDR_perc,tree_TRY,p_list_of_pairs,op_list)
     
-    
+     
 
     
     tree_TRY$data$p_val_new <-  p_PAIRS_pval_list 
 
     tree_TRY$data$p_val_new <- factor(tree_TRY$data$p_val_new,                 # Relevel group factor
                          levels = op_list)
+    
+    ######################
+    
 
 
+
+    
+    #preparation for highlighting
+    
     if (FLAG_BULK_DISPLAY== TRUE){
 
         
         for (index_high in 1:how_many_hi) {
             list_high_for <- lists_list_hi[[index_high]]
+            
 
             if (index_high==1) {
                 tree_TRY$data$'high1' <-  list_high_for 
@@ -1111,16 +1228,14 @@ func.make.plot.tree.heat.NEW <- function( tree440,
     
         }
 
-    #tree_TRY$data$high_id <-  list_high_with_id 
-    #tree_TRY$data$high_id <- factor(tree_TRY$data$high_id,                 # Relevel group factor
-    #                     levels = unique(list_high_with_id))
+
     }
     
     tree_TRY1<- tree_TRY
 
     
     
-       #rotate tree if required
+    #rotate tree if required
     
     if (rotate_flag %in% c("RX_first", "FRAC_first") ) {
  
@@ -1133,13 +1248,9 @@ func.make.plot.tree.heat.NEW <- function( tree440,
     if (rotate_flag =="RX_first"){
         
 
-        
-
         tree_TRY2 <- func.rotate.tree.based.on.weights (tree_TRY1,list_weight_dx.rx,list_weight_frac,
                                     TREE_OTU_dx.rx,TREE_OTU_frac,tree_size)
-   
-        
-        
+
         
         } else if (rotate_flag =="FRAC_first"){
             
@@ -1174,17 +1285,159 @@ func.make.plot.tree.heat.NEW <- function( tree440,
 
     
     
-        #make column for bootstrap values only in the tree, used in display
+    #make column for bootstrap values only in the tree, used in display
     zs =rep(0, tree_size)
+    base= rep("black", tree_size)
     pr440_short_tips_TRY$data$boot_val <-  zs
+    pr440_short_tips_TRY$data$boot_val_rounded <- zs
+    pr440_short_tips_TRY$data$color <- base
+    space_vec<- rep("", tree_size)
+    
+    
+    
+    round_to <-5
+    list_boot_display <- c('raw','numbered_colored','numbered_color','shade','percentage')
+    if (boot_values$'format' %in% list_boot_display) {
+        if ('param' %in%  names(boot_values)) {
+
+            round_to <- strtoi(boot_values$'param')
+
+        } 
+    }
+
+    if (boot_values$'format' %in% c("numbered_colored","shade","numbered_color",'percentage', 'percentage_color')) {
+        round_to <-1
+    }
+    
+
+    if (boot_values$'format' %in% c("numbered_color", "percentage_color") ){ 
+        
+        
+        
+        pr440_short_tips_TRY$data$boot_val_rounded0 <- space_vec
+        pr440_short_tips_TRY$data$boot_val_rounded1 <- space_vec
+        pr440_short_tips_TRY$data$boot_val_rounded2 <- space_vec
+        pr440_short_tips_TRY$data$boot_val_rounded3 <- space_vec
+        pr440_short_tips_TRY$data$boot_val_rounded4 <- space_vec
+        pr440_short_tips_TRY$data$boot_val_rounded5 <- space_vec
+        pr440_short_tips_TRY$data$boot_val_rounded6 <- space_vec
+        pr440_short_tips_TRY$data$boot_val_rounded7 <- space_vec
+        pr440_short_tips_TRY$data$boot_val_rounded8 <- space_vec
+        pr440_short_tips_TRY$data$boot_val_rounded9 <- space_vec
+        pr440_short_tips_TRY$data$boot_val_rounded10 <- space_vec
+    }
+    
+    
+    jmp <- 1/10^round_to
+    jmp_vector <- seq(0, 1, by = jmp)
+
+    
+    #tree_TRY$data$boot_val_rounded <- factor(tree_TRY$data$boot_val_rounded,                 # Relevel group factor
+    #                     levels = jmp_vector)
+
+    
     for (i in 1:tree_size) {
  
         if (i %in% cc_tipss) {
             pr440_short_tips_TRY$data$boot_val[i] = 0
+            pr440_short_tips_TRY$data$boot_val_rounded[i]=""
         } else {
             pr440_short_tips_TRY$data$boot_val[i] =pr440_short_tips_TRY$data$label[i]
+            if (pr440_short_tips_TRY$data$boot_val[i]== "") {
+                pr440_short_tips_TRY$data$boot_val_rounded[i]=1
+            } else {
+                pr440_short_tips_TRY$data$boot_val_rounded[i]=round(as.numeric(pr440_short_tips_TRY$data$boot_val[i]), digits = round_to)
+            }
+            
         }
+
     }
+
+    
+    
+    if (boot_values$'format'== "numbered_color") {
+        
+        for (i in 1:tree_size) {
+            if (! i %in% cc_tipss) {
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0) {
+                    pr440_short_tips_TRY$data$boot_val_rounded0[i]= 0
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0.1) {
+                    pr440_short_tips_TRY$data$boot_val_rounded1[i]= 0.1
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0.2) {
+                    pr440_short_tips_TRY$data$boot_val_rounded2[i]= 0.2
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0.3) {
+                    pr440_short_tips_TRY$data$boot_val_rounded3[i]= 0.3
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0.4) {
+                    pr440_short_tips_TRY$data$boot_val_rounded4[i]= 0.4
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0.5) {
+                    pr440_short_tips_TRY$data$boot_val_rounded5[i]= 0.5
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0.6) {
+                    pr440_short_tips_TRY$data$boot_val_rounded6[i]= 0.6
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0.7) {
+                    pr440_short_tips_TRY$data$boot_val_rounded7[i]= 0.7
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0.8) {
+                    pr440_short_tips_TRY$data$boot_val_rounded8[i]= 0.8
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0.9) {
+                    pr440_short_tips_TRY$data$boot_val_rounded9[i]= 0.9
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 1) {
+                    pr440_short_tips_TRY$data$boot_val_rounded10[i]= 1
+                }
+            } 
+        }  
+    }
+    
+    if (boot_values$'format'== "percentage_color") {
+        
+        for (i in 1:tree_size) {
+            if (! i %in% cc_tipss) {
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0) {
+                    pr440_short_tips_TRY$data$boot_val_rounded0[i]= 0
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0.1) {
+                    pr440_short_tips_TRY$data$boot_val_rounded1[i]= 10
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0.2) {
+                    pr440_short_tips_TRY$data$boot_val_rounded2[i]= 20
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0.3) {
+                    pr440_short_tips_TRY$data$boot_val_rounded3[i]= 30
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0.4) {
+                    pr440_short_tips_TRY$data$boot_val_rounded4[i]= 40
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0.5) {
+                    pr440_short_tips_TRY$data$boot_val_rounded5[i]= 50
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0.6) {
+                    pr440_short_tips_TRY$data$boot_val_rounded6[i]= 60
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0.7) {
+                    pr440_short_tips_TRY$data$boot_val_rounded7[i]= 70
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0.8) {
+                    pr440_short_tips_TRY$data$boot_val_rounded8[i]= 80
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 0.9) {
+                    pr440_short_tips_TRY$data$boot_val_rounded9[i]= 90
+                }
+                if (pr440_short_tips_TRY$data$boot_val_rounded[i]== 1) {
+                    pr440_short_tips_TRY$data$boot_val_rounded10[i]= 100
+                }
+            } 
+        }  
+    }
+
+
     
     cls_renaming_list_with_no_name <- c(cls_renaming_list,no_name)
     
@@ -1215,7 +1468,7 @@ func.make.plot.tree.heat.NEW <- function( tree440,
     list_of_sizes <- c(1,  1.6,  2.2)*edge_width_multiplier
     
 
-
+    
     pr440_short_tips_TRY_new <- pr440_short_tips_TRY + scale_color_manual(values=colors_scale1) + 
     scale_size_manual(values=list_of_sizes)
     
@@ -1227,31 +1480,115 @@ func.make.plot.tree.heat.NEW <- function( tree440,
     #Add bootstrap values to the tree if required
 
    
-    #x_range_min = min(pr440_short_tips_TRY_new$data$x)
-    #x_range_max = max(pr440_short_tips_TRY_new$data$x)
+
     
     square_size_legend <- size_font_legend_box # 30  #16
     text_legend_title_size <- size_font_legend_title # 50 #30
     text_legend_size <- size_font_legend_text #35 # 25
     
-    size_90 <- 26
-    size_80 <- 24
-    size_70 <- 22
+    
+    
+    size_70 <- edge_width_multiplier
+    size_80 <- size_70+1
+    size_90 <- size_70+2
+    pr440_short_tips_TRY_new_with_boot <- pr440_short_tips_TRY_new
+    
+    pr440_short_tips_TRY_new_with_boot <- pr440_short_tips_TRY_new
     
     if (show_boot_flag == TRUE) {
-
-    pr440_short_tips_TRY_new_with_boot <- pr440_short_tips_TRY_new + 
-    geom_nodepoint(position=position_nudge(x = 0.005+man_boot_x_offset, y = 0),aes(subset = boot_val >= 0.9 ),size = size_90,
+    
+        if (boot_values$'format' == 'triangles') {
+        
+            pr440_short_tips_TRY_new_with_boot <- pr440_short_tips_TRY_new + 
+    geom_nodepoint(position=position_nudge(x = man_boot_x_offset, y = 0),aes(subset = boot_val >= 0.9 ),size = size_90,
                shape=24, fill="grey36",colour = "grey20",show.legend = FALSE,alpha=1/2) + 
-    geom_nodepoint(position=position_nudge(x = 0.005+man_boot_x_offset, y = 0),aes(subset = boot_val >= 0.8 & boot_val < 0.9 ),size = size_80,
+    geom_nodepoint(position=position_nudge(x = +man_boot_x_offset, y = 0),aes(subset = boot_val >= 0.8 & boot_val < 0.9 ),size = size_80,
                shape=24, fill="grey36",colour = "grey20",show.legend = FALSE,alpha=1/2) + #orchid3
-    geom_nodepoint(position=position_nudge(x = 0.005+man_boot_x_offset, y = 0),aes(subset = boot_val >= 0.7 & boot_val < 0.8),size = size_70,
+    geom_nodepoint(position=position_nudge(x = man_boot_x_offset, y = 0),aes(subset = boot_val >= 0.7 & boot_val < 0.8),size = size_70,
                shape=24, fill="grey36", colour = "grey20",show.legend = FALSE,alpha=1/2)  #orchid1 #"#b5e521"
         
-    } else {
+        
+        } #else {
+        
+            if (boot_values$'format' == 'raw') {
+            pr440_short_tips_TRY_new_with_boot <- pr440_short_tips_TRY_new + 
+            geom_text(aes(label = boot_val_rounded
+                          ,angle=90,colour="black"), hjust = -0.5, vjust = -0.4, size = 2,show.legend= FALSE,colour="black")
+            }
+        
+            if (boot_values$'format' == 'percentage') {
+            pr440_short_tips_TRY_new_with_boot <- pr440_short_tips_TRY_new + 
+            geom_text(aes(label = boot_val_rounded
+                          ,angle=90,colour="black"), hjust = -0.5, vjust = -0.4, size = 2,show.legend= FALSE,colour="black")
+            }
+        
+        
+        
+        
+            if (boot_values$'format' == 'numbered_colored') {
+            #print("numbered_colored")
+            
 
-        pr440_short_tips_TRY_new_with_boot <- pr440_short_tips_TRY_new
+
+            
+            pr440_short_tips_TRY_new_with_boot <- pr440_short_tips_TRY_new + 
+            geom_text(aes(label = boot_val_rounded
+                          ,angle=90,colour="black"), hjust = -0.5, vjust = -0.4,
+                      size = 2,show.legend= FALSE,colour="black")
+            
+            
+        }
+        
+        
+        #print(boot_values$'format')
+        if (boot_values$'format' %in% c('numbered_color','percentage_color')) {
+            
+            
+            #print(pr440_short_tips_TRY$data$boot_val_rounded0)
+            #print(pr440_short_tips_TRY$data$boot_val_rounded1)
+            
+        pr440_short_tips_TRY_new_with_boot <- pr440_short_tips_TRY_new + 
+            geom_text(aes(label = boot_val_rounded0
+                          ,angle=90,colour="gray98"), hjust = -0.5, vjust = -0.4, size = 2,show.legend= FALSE,colour="gray98") +
+        geom_text(aes(label = boot_val_rounded1
+                          ,angle=90,color="gray90"), hjust = -0.5, vjust = -0.4, size = 2,show.legend= FALSE,colour="gray90")+
+        geom_text(aes(label = boot_val_rounded2
+                          ,angle=90,color="gray80"), hjust = -0.5, vjust = -0.4, size = 2,show.legend= FALSE,colour="gray80")+
+        geom_text(aes(label = boot_val_rounded3
+                          ,angle=90,color="gray70"), hjust = -0.5, vjust = -0.4, size = 2,show.legend= FALSE,colour="gray70")+
+        geom_text(aes(label = boot_val_rounded4
+                          ,angle=90,color="gray60"), hjust = -0.5, vjust = -0.4, size = 2,show.legend= FALSE,colour="gray60")+
+        geom_text(aes(label = boot_val_rounded5
+                          ,angle=90,color="gray50"), hjust = -0.5, vjust = -0.4, size = 2,show.legend= FALSE,colour="gray50")+
+        geom_text(aes(label = boot_val_rounded6
+                          ,angle=90,color="gray40"), hjust = -0.5, vjust = -0.4, size = 2,show.legend= FALSE,colour="gray40")+
+        geom_text(aes(label = boot_val_rounded7
+                          ,angle=90,color="gray30"), hjust = -0.5, vjust = -0.4, size = 2,show.legend= FALSE,colour="gray30")+
+        geom_text(aes(label = boot_val_rounded8
+                          ,angle=90,color="gray20"), hjust = -0.5, vjust = -0.4, size = 2,show.legend= FALSE,colour="gray20")+
+        geom_text(aes(label = boot_val_rounded9
+                          ,angle=90,color="gray10"), hjust = -0.5, vjust = -0.4, size = 2,show.legend= FALSE,colour="gray10")+
+        geom_text(aes(label = boot_val_rounded10
+                          ,angle=90,color="gray1"), hjust = -0.5, vjust = -0.4, size = 2,show.legend= FALSE,colour="gray1")
+        
+        }
+        
+        if (boot_values$'format' == 'shade') {
+            #print("shade")
+            #pr440_short_tips_TRY_new_with_boot <- ggtree(tree440)+scale_y_reverse()+layout_dendrogram()
+            #pr440_short_tips_TRY_new 
+        }
     }
+     
+    
+        
+
+
+        
+   # } else {
+
+    #    pr440_short_tips_TRY_new_with_boot <- pr440_short_tips_TRY_new
+    #}
     
         
     # add legends to the tree
@@ -1263,105 +1600,512 @@ func.make.plot.tree.heat.NEW <- function( tree440,
     } 
     
 
-    
-
+    min_col_x_of_frame_of_prev_heat<-0
+   
     new_base <-0
     
     pr440_short_tips_TRY_new_with_boot<- pr440_short_tips_TRY_new_with_boot#+geom_treescale(x=-20,y=0) 
-
     
+
+     
     pr440_short_tips_TRY_new_with_boot_more1 <- pr440_short_tips_TRY_new_with_boot
     
- 
-    #print(pr440_short_tips_TRY_new_with_boot_more1)
+    text_mu <- round(width/100)-2
+    if (units_out=="cm") {
+        text_mu <- text_mu*10
+    }
+    mar <- round(width/50)
+    mar1 <- mar+5
+    
  
     pr440_short_tips_TRY_new_with_boot_more1 <- pr440_short_tips_TRY_new_with_boot_more1 + 
     layout_dendrogram() +
-    guides(colour = guide_legend(title = group_display_title, 
-                                 override.aes = list(size = square_size_legend*3, alpha = 1,linetype=12, linewidth=30),
+    guides(colour = guide_legend(title = group_display_title, byrow = TRUE,
+                                 override.aes = list(size = square_size_legend*text_mu, alpha = 1,linetype="solid", linewidth=1),
                                 breaks = levels(pr440_short_tips_TRY_new_with_boot_more1$data$group)),
-       size = guide_legend(title = "p value")) + 
-    theme(legend.text = element_text(size = text_legend_size*10,margin = margin(t = 40, b=40, unit = "pt")),
-      legend.title = element_text(size = text_legend_title_size*5,face = "bold"),
-     legend.spacing.y = unit(3, 'cm')) +
-    scale_y_reverse()  +
-    geom_rootedge()
-
+        size = guide_legend(title = "p value"),fill = guide_legend(byrow = TRUE)) + 
+        theme(legend.text = element_text(size = text_legend_size*text_mu,margin = margin(t = mar, b=mar, unit = "pt")),
+        legend.title = element_text(size = text_legend_title_size,face = "bold"),
+        legend.spacing.y = unit(text_mu/6, 'cm')) +
+        ##guides(fill = guide_legend(byrow = TRUE))+
+        ##guides(colour = guide_legend(title = group_display_title,byrow = TRUE))+
+        scale_y_reverse()  +
+        geom_rootedge()
     
-
+    
+    
+    
+    
+    
     
     x_range_min <-  min(pr440_short_tips_TRY_new_with_boot_more1$data$x)
     x_range_max <-  max(pr440_short_tips_TRY_new_with_boot_more1$data$x)
-    x_off_base<-  x_range_min*0.6  -man_adj_second_legend -3 #-0.9 #-0.76
+    
+    
+    
+    
+    x_off_base<-  x_range_min*0.4  -man_adj_second_legend  #-0.9 #-0.76
 
     # highlight bullk if required
     
-    print("min")
-    print(x_range_min)
-    print(x_range_max)
+
     
- 
+    op <- -3 
+    
+
         
     pr440_short_tips_TRY_new_with_boot_more1 <- pr440_short_tips_TRY_new_with_boot_more1 +
-    geom_tiplab(size =size_tip_text,angle=90,hjust=1,show.legend = FALSE)
+        geom_tiplab(size =size_tip_text,angle=90,hjust=1,show.legend = FALSE)
+    
+    how_mant_rows <-0
+    how_many_boxes <- 0
+    if (FLAG_BULK_DISPLAY== TRUE) {
+        how_mant_rows <- how_mant_rows+ how_many_hi
+        how_many_boxes <- how_many_boxes+1
+    }
+    if (show_boot_flag== TRUE) {
+        how_mant_rows <- how_mant_rows+3
+        how_many_boxes <- how_many_boxes+1
+    }
+    
+
+
+    
+   #### 
+  boudariestt <- func.find.plot.boundaries(pr440_short_tips_TRY_new_with_boot_more1,debug_mode)
+
+    p <- pr440_short_tips_TRY_new_with_boot_more1
+
+    
+    #if (FLAG_BULK_DISPLAY ==TRUE) {}
+    if (FLAG_BULK_DISPLAY ==TRUE) {
+        
+                x_adj_hi <- 0
+        if (heat_flag== FALSE) {
+                a <- id_tip_trim_end*size_tip_text/300 +man_adjust_elipse_a  #height of elipse
+                b <- 0.45 +man_adjust_elipse_b #width of elipse
+        } else {
+            a <- id_tip_trim_end* size_tip_text/33 +man_adjust_elipse_a# *0.045
+            b <- 0.45 +man_adjust_elipse_b #width of elipse
+        }   
+
+        
+ 
+    }
+   if (heat_flag == TRUE) { 
+       
+    tt<- p
+    for(i in cc_totss) {
+        par <- tt$data$parent[i]
+        parX <- tt$data$x[par]
+        tt$data[tt$data$node[i], "x"] = tt$data[tt$data$node[i], "x"]*15
+    }
+       
+       how_many_tips <- length(tt$data$isTip)
+       if (debug_mode== TRUE) {
+           print("how_many_tips is")
+           print(how_many_tips)
+        }
+
+    max_len_col_name_heat <-0
+     for (j in 1:length(heat_map_title_list)) {  
+              colnames_heat <- colnames(dxdf440_for_heat[[j]])
+            max_len_col_name_heat <- max(max_len_col_name_heat,max(nchar(colnames_heat)) )
+    }
+       
+    boudariestt <- func.find.plot.boundaries(tt,debug_mode)
+       if (debug_mode== TRUE) {
+           print("boudariestt is")
+           print(boudariestt)
+        }
+       
+    off_base <- 0.7
+    param <-0
+    j <-0
+    for (j1 in 1:length(heat_map_title_list)) {
+        if (debug_mode== TRUE) {
+            print("heatmap number")
+            print(j)
+            print("off_base is")
+            print(off_base)
+            print("param is")
+            print(param)
+            print("man_adj_heat_loc is")
+            print(man_adj_heat_loc)
+        }
+        
+
+        
+        if ( heat_display_vec[j1]== FALSE) {
+            #print("dont display heat number")
+            pr440_short_tips_TRY_heat<- tt
+            print(j1)
+            next
+        } else {
+            #print("display heat number")
+            print(j1)
+            j <- j+1
+        }
+        
+
+
+        off <- off_base +param+man_adj_heat_loc
+        if (j>1) {
+            off <- off+man_adj_heat_loc2
+        }
+        if (j>2) {
+            off <- off+man_adj_heat_loc3
+        }
+
+        if (j>1) {
+            #if ( heat_display_vec[j-1]== FALSE) {
+                #print("no new_scale_fill")
+                #tt <- pr440_short_tips_TRY_heat
+            #} else {
+                #print("new_scale_fill")
+                tt <- pr440_short_tips_TRY_heat + new_scale_fill()
+            #}
+            
+        }
+        
+        width_heat_row <-1.4 #0.8
+        wi <- width_heat_row*length(colnames(dxdf440_for_heat[[j1]]))/23
+        if (debug_mode== TRUE) {
+            print("off is")
+            print(off)
+            print("length(colnames(dxdf440_for_heat[[j1]])) is")
+            print(length(colnames(dxdf440_for_heat[[j1]])))
+        
+            print("wi is")
+            print(wi)
+            print("range is is")
+            print(tt$data)
+        }
+
+        
+
+        if (is.null(dxdf440_for_heat[[j1]])== TRUE) {
+            print(paste0("No columns for heatmap display ",j1))
+            next
+        }
+        
+        
+        sub_df_heat_j <- dxdf440_for_heat[[j1]]
+        colnames_sub_df_heat_j <- colnames(sub_df_heat_j)
+        if (j>1) {
+            new_heat_x <- min_col_x_of_frame_of_prev_heat+0.3
+        
+            
+        } else {
+            new_heat_x <- off
+           
+        }
+        
+         boudariestt <- func.find.plot.boundaries(tt,debug_mode)
+        
+        
+        
+        
+        heat_names_offset <- how_many_tips*max_len_col_name_heat/450*(size_font_heat_map_legend/2.25)
+
+        
+        heat_param_j <- heat_display_params_list[[j1]]
+        heat_param <- heat_display_params_list[[j1]]
+        
+        
+        
+        if (debug_mode== TRUE){
+            print("heat_names_offset is")
+            print(heat_names_offset)
+        
+
+        
+            print("heat_param_j is")
+            print(heat_param_j)
+        
+            print("new_heat_x is")
+            print(new_heat_x)
+        }
+
+
+        #print("heat_maps_titles_angles_vector is")
+        #print(heat_maps_titles_angles_vector)
+        
+        if (is.na(heat_maps_titles_angles_vector[1])) {
+            colnames_angle=0
+        } else {
+            if (length(heat_maps_titles_angles_vector)<j1) {
+                colnames_angle=0
+            } else {
+                colnames_angle= heat_maps_titles_angles_vector[j1]
+            }
+        }
+        
+        
+
+            pr440_short_tips_TRY_heat <- gheatmap(tt ,data= dxdf440_for_heat[[j1]], colnames_angle=colnames_angle, offset = new_heat_x, 
+                                                  width=wi,
+                                          font.size = size_font_heat_map_legend, colnames_offset_x=0, #xmmax/10
+                                                  colnames_offset_y=heat_names_offset,
+                                          legend_title = heat_map_title_list[[j1]]) #+
+        #scale_fill_viridis_c(option = "plasma", name=heat_map_title_list[[j]], direction=-1)
+        #scale_fill_gradient2(
+    #low = "beige", 
+    #mid = "seashell2", 
+    #high = "firebrick4", 
+    #midpoint = .02,
+    #name=heat_map_title_list[[j]]       
+  #)
+        if (j==1) {
+        pr440_short_tips_TRY_heat <- gheatmap(pr440_short_tips_TRY_heat ,data= dxdf440_for_heat[[j1]], colnames_angle=colnames_angle, offset = new_heat_x, 
+                                                  width=wi,
+                                          font.size = size_font_heat_map_legend, colnames_offset_x=0, #xmmax/10
+                                                  colnames_offset_y=heat_names_offset,
+                                          legend_title = heat_map_title_list[[j1]]) #+
+        #scale_fill_viridis_c(option = "plasma", name=heat_map_title_list[[j]], direction=-1)
+        #scale_fill_gradient2(
+    #low = "beige", 
+    #mid = "seashell2", 
+    #high = "firebrick4", 
+    #midpoint = .02,
+    #name=heat_map_title_list[[j]]       
+  #)
+            }
+        
+        
+        
+
+        if (heat_param['is_discrete']== FALSE) {
+            
+            if (debug_mode== TRUE){
+                print("heat_param['is_discrete'] is false")
+            }
+
+            pr440_short_tips_TRY_heat <- pr440_short_tips_TRY_heat +
+ #                   scale_fill_viridis_c(option = "plasma", name=heat_map_title_list[[j]], direction=-1)
+        scale_fill_gradient2(
+    low = heat_param['low'], 
+    mid = heat_param['mid'], 
+    high = heat_param['high'], 
+    midpoint = .02,
+    name=heat_map_title_list[[j1]]       
+  )
+            
+        } else {
+            
+                        pr440_short_tips_TRY_heat <- pr440_short_tips_TRY_heat+
+                scale_fill_viridis_d(option=heat_param['color_scale_option'], 
+                                     name=heat_map_title_list[[j1]], direction=-1, na.value ="gray")
+            if (heat_param['man'] == FALSE) {
+                if (heat_param['man_define_colors'] ==FALSE) {
+
+                    pr440_short_tips_TRY_heat <- pr440_short_tips_TRY_heat+
+                    scale_fill_hue(name=heat_map_title_list[[j1]])
+                } else {
+
+                    
+                    pr440_short_tips_TRY_heat <- pr440_short_tips_TRY_heat+
+                    scale_fill_manual(values = heat_param[['color_scale_option1']]$color_scale_option)
+                }
+            } else {
+                pr440_short_tips_TRY_heat <- pr440_short_tips_TRY_heat+
+                scale_fill_hue(h = c(heat_param$color_scale_range_start, heat_param$color_scale_range_end ),
+                               name=heat_map_title_list[[j1]])
+            }
+        }
+        
+        
+        
+        
+
+      
+
+        param <- param + 0.25*length(colnames(dxdf440_for_heat[[j1]]))+0.25
+        if (debug_mode== TRUE){
+            print("param is")
+            print(param)
+        }
+
+        if(j==1) {
+            pr440_short_tips_TRY_heat <- pr440_short_tips_TRY_heat+
+                    theme(legend.text = element_text(size = text_legend_size*text_mu,
+                                                     margin = margin(t = mar/2, b=mar/2, unit = "pt")),
+          legend.title = element_text(size = text_legend_title_size,face = "bold"),
+         legend.spacing.y = unit(text_mu/12, 'cm'), #legend1 horizontal space between key and text
+          legend.spacing.x = unit(0.7, 'cm'),
+             legend.spacing=unit(0.25, 'cm'), #vertical space of legend1 space between lines of legend
+             legend.key.width=unit(1, 'cm'),
+             legend.key.height=unit(0.5,"line"))
+            
+        off_base <- off
+        }
+        else {
+            if (j==2) {
+                pr440_short_tips_TRY_heat <- pr440_short_tips_TRY_heat+
+                scale_fill_viridis_d(option="B", name=heat_map_title_list[[j1]], direction=-1, na.value ="gray")+
+                scale_fill_hue(name=heat_map_title_list[[j1]])
+            } else {
+                pr440_short_tips_TRY_heat <- pr440_short_tips_TRY_heat+
+                scale_fill_viridis_d(option="A", name=heat_map_title_list[[j1]], direction=1, na.value ="gray")+
+                scale_fill_hue(h = c(100, 300),name=heat_map_title_list[[j1]]) 
+                
+
+            }
+            
+        }
+        
+        
+        
+
+        min_col_x_of_frame_of_prev_heat <- func.calc.min_col_x_of_frame_of_prev_heat(pr440_short_tips_TRY_heat,colnames_sub_df_heat_j)
+
+    }
+    p <- pr440_short_tips_TRY_heat  #tree_TRY #pr440_short_tips_TRY_heat #temp
+       }
+    ##################################
+    #######################
+
+ 
+    #}
+
+    if (!exists("high_title_list")) {
+        high_title_list <- ""
+    }
     
         if (FLAG_BULK_DISPLAY ==TRUE) {
         
-    b <- 0.28 #+ ((100-width)*0.005)#0.45 #0.45 + (height-60)*0.04
-    a <-   0.017 + ((100-height)*0.0004) #0.035 + (height-60)*(-0.002) #0.15
-    x_adj_hi <- 0.017  + ((100-height)*0.0001)#0.025
+                x_adj_hi <- 0
+        if (heat_flag== FALSE) {
+                a <- id_tip_trim_end*size_tip_text/300 +man_adjust_elipse_a  #height of elipse
+                b <- 0.45 +man_adjust_elipse_b #width of elipse
+        } else {
+            a <- id_tip_trim_end* size_tip_text/(5.1*boudariestt$xmax) +man_adjust_elipse_a# *0.045
+            b <- 0.45 +man_adjust_elipse_b #width of elipse
+        }   
 
-    if (x_adj_hi<=0) {
-        x_adj_hi <-0.01
-    }
-    if (a<=0) {
-        a<-0.01
-    }
-    if (b<=0) {
-        b<-0.01
+        
+      p<- func_highlight(p,how_many_hi,heat_flag,high_color_list,a,b,man_adjust_elipse,pr440_short_tips_TRY,boudariestt,debug_mode)
     }
     
-    b<- 0.45 #0.15 #0.45 /1.5 * (x_range_min *(-1))
 
-    a<- 0.035 /1.5 * (x_range_min *(-1)) *man_multiply_elipse #0.01 #0.035
+          
+    p<- func.make.second.legend( p,
+                                    FLAG_BULK_DISPLAY,
+                                    how_many_hi,
+                                    heat_flag,
+                                    how_many_boxes,
+                                    how_mant_rows,
+                                    boudariestt ,
+                                    y_off_base,
+                                    high_title_list,
+                                size_font_legend_title,
+                                high_label_list,
+                                size_font_legend_text,
+                                high_color_list,
+                                a,
+                                b,
+                                x_range_min,
+                                show_boot_flag,
+                                size_90,
+                                size_80,
+                                size_70,
+                                man_adjust_image_of_second_legend,
+                                man_multiply_second_legend,
+                                man_multiply_second_legend_text,
+                                man_multiply_elipse,
+                                man_space_second_legend,
+                                man_space_second_legend_multiplier,
+                                man_offset_for_highlight_legend_x,
+                                debug_mode,
+                                boot_values,
+                                man_offset_second_legend
+                                    )
+    
+    p <- p
+    ####
+    
+        if (boot_values$'format' == 'shade') {
+        pr440_short_tips_TRY_new_with_boot_more1 <- 
+            c(ggtree(tree440)#+scale_y_reverse()+layout_dendrogram()
+              ,p)
+    }
+
+
+     ggsave(out_file_path, width = width, height = height, units = units_out, limitsize = FALSE)
+
+    out <- c()
+    out[['p']] <- p
+    out <- out
+    
+}
+
+ func_highlight <- function(p,
+                           how_many_hi,
+                           heat_flag,
+                           high_color_list,
+                           a,b,man_adjust_elipse,
+                           pr440_short_tips_TRY,
+                           boudariestt,
+                           debug_mode=FALSE)  {  
+
         
-     x_adj_hi <- 0 #0.017
-        
-    up_offset<- -3
-    #a<- 0.5 #0.02
+        up_offset<- -1 #-3
+  
+        y_off_base<- #-8
+
+
+
             
-   
-    
-    y_off_base<-  -8
-    x_off_base<-round(x_range_min/4) #x_range_min +0.1 #x_range_min*0.6 -man_adj_second_legend  #-0.9 #-0.76
-     x_off_base2 <- round(x_range_min/6)
-
-       
         for (index_high in 1:how_many_hi) {
-            #print("index_high is")
-            #print(index_high)
             if (index_high==1) {
-                high_nodes_table1 <- pr440_short_tips_TRY$data[tree_TRY$data$high1 == TRUE,]
- 
-                pr440_short_tips_TRY_new_with_boot_more1 <- pr440_short_tips_TRY_new_with_boot_more1 +
+                
+                
+                
+                high_nodes_table1 <- pr440_short_tips_TRY$data[pr440_short_tips_TRY$data$high1 == TRUE,]
+                if (debug_mode== TRUE) {
+                    print("high_nodes_table1 is")
+                    print(high_nodes_table1)
+                    print("high_nodes_table1$x is")
+                    print(high_nodes_table1$x)
+                    print("max high_nodes_table1$x is")
+                    print(max(pr440_short_tips_TRY$data[,'x']))
+                }
+
+                
+                if (length(high_nodes_table1$x)==0) {
+                    print(paste0(paste0("Highlist number ",index_high),"- None of the nodes is highlighted, skipped"))
+                    next
+                }
+                
+                bas <- max(pr440_short_tips_TRY$data[,'x'])- as.integer(high_nodes_table1$x)
+            if (heat_flag== FALSE) {
+                p <- p +
             geom_ellipse(data=high_nodes_table1,
-                         aes(x0 = (max(pr440_short_tips_TRY$data[,'x'])-x)*(-16)+x_adj_hi +man_adjust_elipse+0.40, #0.01
+                         aes(x0 = ((max(pr440_short_tips_TRY$data[,'x'])-x )*(-1)+man_adjust_elipse-15), #0.01
                                            y0 = y, a = a, b = b, angle = 0),
                     fill=high_color_list[[1]],alpha=0.5,linetype="blank",show.legend=FALSE)
+                     } else {
+                     p <- p +
+            geom_ellipse(data=high_nodes_table1,
+                         aes(x0 = ((max(p$data[,'x'])-x )*(-15.4)+man_adjust_elipse-boudariestt$xmax- boudariestt$xmin), #0.01
+                                           y0 = y, a = a, b = b, angle = 0),
+                    fill=high_color_list[[1]],alpha=0.5,linetype="blank",show.legend=FALSE)
+                 }
+                
             } else {
                 if (index_high==2) {
-                    high_nodes_table2 <- pr440_short_tips_TRY$data[tree_TRY$data$high2 == TRUE,]
-                    pr440_short_tips_TRY_new_with_boot_more1 <- pr440_short_tips_TRY_new_with_boot_more1 +
+                    high_nodes_table2 <- p$data[p$data$high2 == TRUE,]
+                    p <- p +
                     geom_ellipse(data=high_nodes_table2,
-                         aes(x0 = (max(pr440_short_tips_TRY$data[,'x'])-x)*(-16)+x_adj_hi +man_adjust_elipse+0.405, 
+                         aes(x0 = ((max(p$data[,'x'])-x )*(x_range_min)), 
                                            y0 = y, a = a, b = b, angle = 0),
                         fill=high_color_list[[2]],alpha=0.5,linetype="blank",show.legend=FALSE)
                 } else {
                     if (index_high==3) {
-                        high_nodes_table3 <- pr440_short_tips_TRY$data[tree_TRY$data$high3 == TRUE,]
-                        pr440_short_tips_TRY_new_with_boot_more1 <- pr440_short_tips_TRY_new_with_boot_more1 +
+                        high_nodes_table3 <- p$data[tree_TRY$data$high3 == TRUE,]
+                        p <- p +
                             geom_ellipse(data=high_nodes_table3,
-                             aes(x0 = (max(pr440_short_tips_TRY$data[,'x'])-x)*(-16)+x_adj_hi +man_adjust_elipse+0.41, 
+                             aes(x0 = ((max(pr440_short_tips_TRY$data[,'x'])-x )*(x_range_min)), 
                                            y0 = y, a = a, b = b, angle = 0),
                             fill=high_color_list[[3]],alpha=0.5,linetype="blank",show.legend=FALSE)
                     }
@@ -1373,7 +2117,7 @@ func.make.plot.tree.heat.NEW <- function( tree440,
 
 
             
-    p<- pr440_short_tips_TRY_new_with_boot_more1
+
     p1 <- p$layers[1]
     p2 <- p$layers[2]
     p7 <- p$layers[7]
@@ -1394,852 +2138,327 @@ func.make.plot.tree.heat.NEW <- function( tree440,
     p$layers[6] <- p3
     p$layers[7] <- p4  
     p$layers[8] <- p3
-            
-    
-    #for (jj in 1:10) {
+     
 
-    #}
-     yet_another_multiplier<- 0   
+     
+     p<- p
+}
+
+func.calc.min_col_x_of_frame_of_prev_heat <- function(pr440_short_tips_TRY_heat,colnames_sub_df_heat_j) {
+                   
+        buildd <- ggplot_build(pr440_short_tips_TRY_heat)
+
+        
+                build_length <- length(buildd$data)
+
+        heat_build_idx <- build_length
+        
+        for (index_build in 1:build_length) {
+
+            if ('label' %in% colnames(buildd$data[[index_build]])) {
+                build_frame <- buildd$data[[index_build]]
+                col_label <- build_frame$label
+
+                if (col_label[1]==colnames_sub_df_heat_j[1]) {
+                    heat_build_idx <- index_build
+                }
+            }
+        }
+        frame_of_prev_heat <-buildd$data[[heat_build_idx-1]]
+
+        col_x_of_frame_of_prev_heat <- frame_of_prev_heat$x
+        min_col_x_of_frame_of_prev_heat <-min(frame_of_prev_heat$x)
+        min_col_x_of_frame_of_prev_heat <- min_col_x_of_frame_of_prev_heat*(-1)
+
+    
+    min_col_x_of_frame_of_prev_heat<- min_col_x_of_frame_of_prev_heat
+}
+
+
+func.find.plot.boundaries <- function(tt, debug_mode= FALSE) {
+
+        buildt <- ggplot_build(tt)
+        
+
+
+
+        mmin <-0
+        mmax <-0
+        build_length <- length(buildt$data)
+        for (index_build in 1:build_length) {
+
+            build_frame <- buildt$data[[index_build]]
+            if ('y' %in% colnames(buildt$data[[index_build]])) {
+                mmin <- min(mmin, min(build_frame$y))
+                mmax <- max(mmax, max(build_frame$y))
+            }
+            if ('yend' %in% colnames(buildt$data[[index_build]])) {
+                mmin <- min(mmin, min(build_frame$yend))
+                mmax <- max(mmax, max(build_frame$yend))
+            }
+        }
+        
+
+        
+        xmmin <- 0
+        xmmax <- 0
+        
+ 
+        for (index_build in 1:build_length) {
+
+            build_frame <- buildt$data[[index_build]]
+            if ('x' %in% colnames(buildt$data[[index_build]])) {
+                xmmin <- min(xmmin, min(build_frame$x))
+                xmmax <- max(xmmax, max(build_frame$x))
+            }
+            if ('yend' %in% colnames(buildt$data[[index_build]])) {
+                xmmin <- min(xmmin, min(build_frame$xend))
+                xmmax <- max(xmmax, max(build_frame$xend))
+            }
+        }
+        
+        if (debug_mode== TRUE) {
+            print("xmmin is")
+            print(xmmin)
+            print("xmmax is")
+            print(xmmax)
+        }
+    
+    
+    plot_bounds<- c()
+    
+    plot_bounds$xmin <- xmmin
+    plot_bounds$xmax <- xmmax
+    plot_bounds$ymin <- mmin
+    plot_bounds$ymax <- mmax
+    
+    if (debug_mode== TRUE){
+        print("plot_bounds is")
+        print(plot_bounds)
+    }
+    
+
+    
+    plot_bounds <- plot_bounds
+}
+
+
+func.make.second.legend <- function( p,
+                                    FLAG_BULK_DISPLAY,
+                                    how_many_hi,
+                                    heat_flag,
+                                    how_many_boxes,
+                                    how_mant_rows,
+                                    boudariestt,
+                                    y_off_base,
+                                    high_title_list,
+                                    size_font_legend_title,
+                                    high_label_list,
+                                    size_font_legend_text,
+                                    high_color_list,
+                                    a,
+                                    b,
+                                    x_range_min,
+                                    show_boot_flag,
+                                    size_90,
+                                    size_80,
+                                    size_70,
+                                 man_adjust_image_of_second_legend,
+                                man_multiply_second_legend,
+                                man_multiply_second_legend_text,
+                                man_multiply_elipse,
+                                man_space_second_legend,
+                                man_space_second_legend_multiplier,
+                                man_offset_for_highlight_legend_x,
+                                    debug_mode= FALSE,
+                                    boot_values= NA,
+                                    man_offset_second_legend=0
+                                    ) {
+    if (debug_mode== TRUE){
+        print("boudariestt is")
+        print(boudariestt)
+    }
+    
+    if (heat_flag== FALSE) {
+            new_base_for_second_legend_non <- 0.5+ 0.5*(how_mant_rows)*0.05+ 0.5*how_many_boxes*0.1
+            new_base_for_second_legend_normalized <- new_base_for_second_legend_non*x_range_min
+            new_step <- 0.02*x_range_min *man_space_second_legend_multiplier + man_offset_for_highlight_legend_x
+            new_big_step <- 0.15*x_range_min
+            extra <- man_space_second_legend
+        move <- 0
+    } else {
+        
+
+        new_base_for_second_legend_normalized <- boudariestt$xmax*94/100*(-1)  #x_range_min #boudariestt$xmax
+        new_step <- boudariestt$xmax*1/10 *(-1)
+        new_big_step <-  boudariestt$xmax*15/100 *(-1)
+        extra <- man_space_second_legend +0.3
+        
+
+    }
+    
+    if (debug_mode== TRUE){
+        print("new_base_for_second_legend_normalized is")
+        print(new_base_for_second_legend_normalized)
+    }
+    
+    
+    
+############################
+    yet_another_multiplier<- 0   
     if (FLAG_BULK_DISPLAY== TRUE) {
 
-    man_space_second_legend<- man_space_second_legend*2
+    #man_space_second_legend<- man_space_second_legend*2
         yet_another_multiplier <- 1.5
     }
-            print("yet")
-            print(yet_another_multiplier)
+
             
-    stair <- 0.5
+    stair <- 0.05
     multiple_high_up_offset <- stair*(how_many_hi-1)*(-1)
+    if (debug_mode== TRUE){
+        print("multiple_high_up_offset is")
+        print(multiple_high_up_offset)
+        print("new_big_step is")
+        print(new_big_step)
+        print("new_step is")
+        print(new_step)
             
+        print("how_many_hi is")
+        print(how_many_hi)
+    }
+    
+    norm <- 0.8
+    
+    size_title <- size_font_legend_title*man_multiply_second_legend_text
+    
+
+    
+    size_text <- size_font_legend_text* man_multiply_second_legend * norm
+    
+     x11 <-  new_base_for_second_legend_normalized #boudariestt$xmax #op
+     x22 <- new_base_for_second_legend_normalized - new_step
+
+    if (FLAG_BULK_DISPLAY== TRUE) {        
         for (index_high in 1:how_many_hi) {
-            
+  
             multiple_high_down_offset <- (index_high-1)*stair
             if (index_high==1) {
-                print("ya")
-                print(x_off_base2+multiple_high_up_offset+multiple_high_down_offset+man_offset_for_highlight_legend_x- 
-                    (how_many_hi+2-index_high)*yet_another_multiplier)
+               
+                    x11 <-  new_base_for_second_legend_normalized #boudariestt$xmax #op
+                    x22 <- new_base_for_second_legend_normalized - index_high*(new_step)
+                    
+              
+                
+                if (debug_mode== TRUE) {
+                    print("man_multiply_second_legend_text is")
+                    print(man_multiply_second_legend_text)
+                    print("size_font_legend_title is")
+                    print(size_font_legend_title)
+                    print("y_off_base is")
+                    print(y_off_base)
+                }
+ 
+
                 p <- p +
                 annotate(
             geom = "text", 
-            label = high_title_list[[index_high]],  size = size_font_legend_title*man_multiply_second_legend_text, 
-                x = x_off_base2+multiple_high_up_offset+multiple_high_down_offset+man_offset_for_highlight_legend_x- 
-                    (how_many_hi+2-index_high)*yet_another_multiplier,
-                y = y_off_base,  fontface = "bold"
+            label = high_title_list[[index_high]],  size = size_title, 
+                x = x11,
+                    y <- y_off_base+3, hjust=0,vjust=0,
+                 
+                    fontface = "bold"
               ) 
-                
+
                 if (how_many_hi>1) {
                     p<- p+
-                    geom_ellipse(aes(x0 = x_off_base+0.035+multiple_high_up_offset+multiple_high_down_offset-0.7 -0.3+man_offset_for_highlight_legend_x,
+                    geom_ellipse(aes(x0 = x22,
                          y0 = y_off_base+0.7+(width/400)+man_adjust_image_of_second_legend, 
                          a = a, b = b, angle = 0),
             fill=high_color_list[[index_high]],alpha=0.5,linetype="blank",show.legend=FALSE)
                 }
 
             }
+
+            
             p <- p +
          annotate(
         geom = "text", 
-        label = high_label_list[[index_high]],  size = size_font_legend_text* man_multiply_second_legend, 
-             x = x_off_base+0.035+multiple_high_up_offset+multiple_high_down_offset-0.7 + (index_high-1)*1 
-             +(how_many_hi+7-index_high)*yet_another_multiplier +man_offset_for_highlight_legend_x,
-             y = y_off_base-2,  
+        label = high_label_list[[index_high]],  size = size_text, 
+             x = x22 +extra,
+             
+             y <- y_off_base-2,
       )+
-        geom_ellipse(aes(x0 = x_off_base+0.035+multiple_high_up_offset+multiple_high_down_offset-0.7 + 
-                         (index_high-1)*1 +(how_many_hi+7-index_high)*yet_another_multiplier +man_offset_for_highlight_legend_x,
-                         y0 = y_off_base+0.7+(width/400)+man_adjust_image_of_second_legend, 
-                         a = a, b = b, angle = 0),
+        geom_ellipse(aes(x0 = x22 +extra,
+                         
+                         y0= y_off_base+1+man_adjust_image_of_second_legend,
+                         
+                         a = a* man_multiply_elipse, b = b, angle = 0),
             fill=high_color_list[[index_high]],alpha=0.5,linetype="blank",show.legend=FALSE)
        
-          new_base <- 0.035+multiple_high_up_offset+multiple_high_down_offset  
-         #print(index_high)   
-            #print(high_color_list[[index_high]])
             
-        }
-    } else {
+        }       
 
-        pr440_short_tips_TRY_new_with_boot_more1 <-pr440_short_tips_TRY_new_with_boot_more1 +
-        geom_tiplab(size =size_tip_text,angle=90,hjust=1,,show.legend = FALSE)
-        p <- pr440_short_tips_TRY_new_with_boot_more1
-    }
-    
-   
-    
-        #add second legend for bootstrap and highlight if required
-    
-    second_legend_title_font_size<-  round(text_legend_title_size*2,digits = 0)  #16 # 10.5
-    second_text_legend_size<- round(text_legend_size*2,digits = 0) #8.6
-
-    #boot_spacing_legend<- 0.1 #0.04+   man_space_second_legend
+   } 
     
     
-       boot_spacing_legend <-0.5 +    man_space_second_legend #0.04+    man_space_second_legend
-
-
-    #second_legend_title_font_size
-    base_from_hi <- (how_many_hi-1)*(-0.5)
-    print("man_space_second_legend_multiplier")
-    print(man_space_second_legend_multiplier)
-        if (show_boot_flag == TRUE) {
-            
+         if (show_boot_flag == TRUE) {
+          if (boot_values$'format' == 'triangles') {  
     p<- p+
      annotate(
     geom = "text", 
-    label = "Bootstrap",  size = round(size_font_legend_title*man_multiply_second_legend_text), 
-         x = x_off_base+ new_base -3.5+base_from_hi -2* yet_another_multiplier, y = y_off_base,  fontface = "bold"
+    label = "Bootstrap",  size = size_title, 
+         x = x22 - new_big_step +2*extra, 
+         #y = y_off_base+3,  
+         #ymin <- y_off_base+3,
+         y <- y_off_base+3, hjust=0,vjust=0,
+         fontface = "bold"
       )+ 
  annotate(
     geom = "text", 
-    label = ">70%",  size = round(size_font_legend_text*man_multiply_second_legend), 
-     x = x_off_base+ new_base -3.5+ boot_spacing_legend+base_from_hi*man_space_second_legend_multiplier - yet_another_multiplier, y = y_off_base-2,  
+    label = ">70%",  size = size_text, 
+     x = x22 - new_big_step - new_step +3*extra, 
+     y = y_off_base-2,  
   )+
  annotate(
     geom = "text", 
-    label = ">80%",  size = round(size_font_legend_text*man_multiply_second_legend), 
-     x =  x_off_base+ new_base -3.5+ boot_spacing_legend*2+base_from_hi*man_space_second_legend_multiplier*2 , y = y_off_base-2,  
+    label = ">80%",  size = size_text, 
+     x =  x22 - new_big_step - 2*new_step +3*extra, 
+     y = y_off_base-2,  
   )+
  annotate(
     geom = "text", 
-    label = ">90%",  size = round(size_font_legend_text*man_multiply_second_legend), 
-     x = x_off_base+ new_base -3.5+ boot_spacing_legend*3+base_from_hi*man_space_second_legend_multiplier*3 + 1*yet_another_multiplier, y = y_off_base-2,  
-  ) +
+    label = ">90%",  size = size_text, 
+     x = x22 - new_big_step - 3*new_step +3*extra, 
+     y = y_off_base-2,  
+  )+
  annotate(
     geom = "point", 
-    shape=24,  size = size_90, x = x_off_base+ new_base -3.5+ boot_spacing_legend*3+
-     base_from_hi*man_space_second_legend_multiplier*3 + 1*yet_another_multiplier, y = y_off_base+1+man_adjust_image_of_second_legend*2,  
+    shape=24,  size = size_90, x =x22 - new_big_step - 3*new_step +3*extra, 
+     y = y_off_base+1+man_adjust_image_of_second_legend,  
      fill="grey36",colour = "grey20",alpha=1/2,
   )+
  annotate(
     geom = "point", 
-    shape=24,  size = size_80, x = x_off_base+ new_base -3.5+ boot_spacing_legend*2+
-     base_from_hi*man_space_second_legend_multiplier*2 , y = y_off_base+1+man_adjust_image_of_second_legend*2,  
+    shape=24,  size = size_80, x = x22 - new_big_step - 2*new_step +3*extra,
+     y =  y_off_base+1+man_adjust_image_of_second_legend,  
      fill="grey36",colour = "grey20",alpha=1/2,
   ) +
  annotate(
     geom = "point", 
-    shape=24,  size = size_70, x = x_off_base+ new_base -3.5+ boot_spacing_legend+
-     base_from_hi*man_space_second_legend_multiplier,
-     y = y_off_base+1+man_adjust_image_of_second_legend*2,  fill="grey36",colour = "grey20",alpha=1/2,
+    shape=24,  size = size_70, x = x22 - new_big_step - new_step +3*extra,
+     y = y_off_base+1+man_adjust_image_of_second_legend,  fill="grey36",colour = "grey20",alpha=1/2,
   ) 
-            
+     }        
+             
     }
 
-    
-    tt<- p
-    for(i in cc_totss) {
-        par <- tt$data$parent[i]
-        parX <- tt$data$x[par]
-        tt$data[tt$data$node[i], "x"] = tt$data[tt$data$node[i], "x"]*15
-    }
-    
-
-
-    off_base <- 0.6
-    param <-0
-    
-
-    for (j in 1:length(heat_map_title_list)) {
-
-
-        off <- off_base +param+man_adj_heat_loc
-        if (j>1) {
-            off <- off+man_adj_heat_loc2
-        }
-        if (j>2) {
-            off <- off+man_adj_heat_loc3
-        }
-
-        if (j>1) {
-            tt <- pr440_short_tips_TRY_heat + new_scale_fill()
-        }
-        
-        #print(dxdf440_for_heat)
-        
-        #print(length(colnames(dxdf440_for_heat[[j]])))
-
-        
-        wi <- 0.8*length(colnames(dxdf440_for_heat[[j]]))/23
-        
-
-        
-        #print(wi)
-        #print(dxdf440_for_heat[[j]])
-        #print(is.null(dxdf440_for_heat[[j]]))
-
-        if (heat_display_vec[j]== FALSE) {
-            print("dont display heat number")
-            print(j)
-            next
-        }
-        if (is.null(dxdf440_for_heat[[j]])== TRUE) {
-            print(paste0("No columns for heatmap display ",j))
-            next
-        }
-        
-            
-                        pr440_short_tips_TRY_heat <- gheatmap(tt ,data= dxdf440_for_heat[[j]], colnames_angle=45, 
-                                                              offset = off, width=wi,
-                                          font.size = as.numeric(size_font_heat_map_text), colnames_offset_x=0.55, 
-                                                              colnames_offset_y=6.8,
-                                          legend_title = heat_map_title_list[[j]]) +
-                    theme(legend.text = element_text(size = text_legend_size*man_multiply_second_legend_text* man_multiply_first_legend_text,
-                                                     margin = margin(t = 15, b=15, unit = "pt")),
-          legend.title = element_text(size = text_legend_title_size*3.0*man_multiply_first_legend_title_size,face = "bold"),
-         legend.spacing.y = unit(8, 'cm'),
-          legend.spacing.x = unit(5, 'cm'),
-             legend.spacing=unit(1.5, 'cm'),
-             legend.key.width=unit(3, 'cm'),
-             legend.key.height=unit(6,"line"))
-        }
-        
-        #+
-        ##scale_fill_viridis_c(option = "plasma", name=heat_map_title_list[[j]], direction=-1)
-        #scale_fill_gradient2(
-    #low = "beige", 
-    #mid = "seashell2", 
-    #high = "firebrick4", 
-    #midpoint = .02,
-    #name=heat_map_title_list[[j]]       
-  #)
-
-        
-
-      heat_param <- heat_display_params_list[[j]]
-
-
-
-        param <- param+wi*length(colnames(dxdf440_for_heat[[j]]))/3.3+0.6
-        
-
-        
-        if (heat_param['is_discrete']== TRUE) {
-           
-                pr440_short_tips_TRY_heat <- pr440_short_tips_TRY_heat+
-                scale_fill_viridis_d(option=heat_param['color_scale_option'], 
-                                     name=heat_map_title_list[[j]], direction=-1, na.value ="gray")
-            if (heat_param['man'] == FALSE) {
-                if (heat_param['man_define_colors'] ==FALSE) {
-                    pr440_short_tips_TRY_heat <- pr440_short_tips_TRY_heat+
-                    scale_fill_hue(name=heat_map_title_list[[j]])
-                } else {
-                    
-                    #print( heat_param[['color_scale_option1']]$color_scale_option)
-                    pr440_short_tips_TRY_heat <- pr440_short_tips_TRY_heat+
-                    scale_fill_manual(values = heat_param[['color_scale_option1']]$color_scale_option)
-                }
-            } else {
-                pr440_short_tips_TRY_heat <- pr440_short_tips_TRY_heat+
-                scale_fill_hue(h = c(heat_param$color_scale_range_start, heat_param$color_scale_range_end ),
-                               name=heat_map_title_list[[j]])
-            }
-                
-        } else {
-    
-                pr440_short_tips_TRY_heat <- pr440_short_tips_TRY_heat+
-        #scale_fill_viridis_c(option = "plasma", name=heat_map_title_list[[j]], direction=-1)
-        scale_fill_gradient2(
-    low = heat_param$low, 
-    mid = heat_param$mid, 
-    high = heat_param$high, 
-    midpoint = heat_param$midpoint,
-    name=heat_map_title_list[[j]]       
-  ) #+
-    #                theme(legend.text = element_text(size = text_legend_size*man_multiply_second_legend_text,
-    #                                                 margin = margin(t = 15, b=15, unit = "pt")),
-    #      legend.title = element_text(size = text_legend_title_size*3.0,face = "bold"),
-    #     legend.spacing.y = unit(8, 'cm'),
-    #      legend.spacing.x = unit(5, 'cm'),
-    #         legend.spacing=unit(1.5, 'cm'),
-    #         legend.key.width=unit(30, 'cm'),
-    #         legend.key.height=unit(6,"line"))
-    #    }
-        
-        
-
-        #if(j==1) {
-        #    pr440_short_tips_TRY_heat <- pr440_short_tips_TRY_heat+
-        #            theme(legend.text = element_text(size = text_legend_size*1.7,
-        #                                             margin = margin(t = 15, b=15, unit = "pt")),
-        #  legend.title = element_text(size = text_legend_title_size*3.0,face = "bold"),
-        # legend.spacing.y = unit(8, 'cm'),
-        #  legend.spacing.x = unit(5, 'cm'),
-        #     legend.spacing=unit(1.5, 'cm'),
-        #     legend.key.width=unit(3, 'cm'),
-        #     legend.key.height=unit(6,"line"))
-        #    
-        ##off_base <- off
-        #}
-        #else {
-        #    if (j==2) {
-        #        pr440_short_tips_TRY_heat <- pr440_short_tips_TRY_heat+
-        #        scale_fill_viridis_d(option="B", name=heat_map_title_list[[j]], direction=-1, na.value ="gray")+
-        #        scale_fill_hue(name=heat_map_title_list[[j]])
-        #    } else {
-        #        pr440_short_tips_TRY_heat <- pr440_short_tips_TRY_heat+
-        #        scale_fill_viridis_d(option="A", name=heat_map_title_list[[j]], direction=1, na.value ="gray")+
-        #        scale_fill_hue(h = c(100, 300),name=heat_map_title_list[[j]]) 
-                
-
-        #    }
-            
-        #}
-
-    }
-    
-    
-    
-    p <- pr440_short_tips_TRY_heat  #tree_TRY #pr440_short_tips_TRY_heat #temp
-    
-  
-    
  
-    
-    ####
-
-     ggsave(out_file_path, width = width, height = height, units = "cm", limitsize = FALSE)
-
-    out <- c()
-    out[['p']] <- p
-    out <- out
-    
+p_out <- p
 }
-
-
-func.make.plot.tree.NEW <- function( tree440,
-                    dx_rx_types1_short,
-                    list_id_by_class,
-                    dxdf440_dataf,
-                    title.id,
-                    FDR_perc,
-                    no_name,
-                    rotate_flag,
-                    rotation_params1,
-                    rotation_params2,
-                    flag_short_tips , 
-                    tips_length ,
-                    show_boot_flag ,
-                    FLAG_BULK_DISPLAY ,
-                    how_many_hi ,
-                    high_label_list ,
-                    high_color_list ,
-                    high_title_list ,
-                    lists_list_hi ,
-                    simulate.p.value,
-                    width,
-                    height,
-                    colors_scale1 ,
-                    out_file_path ,
-                    edge_width_multiplier=1 ,
-                    size_tip_text=3,
-                    size_font_legend_title=30,
-                    size_font_legend_text=20 ,
-                    size_font_legend_box=15,
-                    labels_not_in_legend,
-                    no_name_color,
-                    debug_mode,
-                    man_adjust_elipse=0,
-                    man_multiply_elipse=1,
-                    man_adj_second_legend= 0.15,
-                    man_space_second_legend= -0.02,
-                    laderize_flag=FALSE, 
-                    cls_renaming_list ,
-                    title_flag ,
-                    title_replace ,
-                    flag_classification_format,
-                    id_tip_trim_flag, 
-                    id_tip_trim_start,
-                    id_tip_trim_end) {
-    
-    
-    
-    if (debug_mode==TRUE){
-        print("In func.make.plot.tree")
-    }
-    
-    dx_rx_types1 <- dx_rx_types1_short
-    
-    pr440 <- ggtree(tree440) 
-    d440 <- pr440$data
-    cc_tipss <- func.create.cc_tipss(d440)
-    cc_nodss <- func.create.cc_nodss(d440)
-    cc_totss <- func.create.cc_totss(d440)
-    
-    nods_num <- length(cc_nodss)
-    tips_num <- length(cc_tipss)
-    tree_size <- nods_num +tips_num 
-    
-    if (debug_mode==TRUE){
-        print("tree data is")
-        print(d440)
-    }
-    
-
-    
-    list_node_by_class <- func.create.list_node_by_class(dx_rx_types1_short,
-                                                     list_id_by_class,dxdf440_dataf,
-                                                         title.id,tree_size,d440,cc_totss,debug_mode,
-                                                         id_tip_trim_flag,id_tip_prefix)
-    
-
-    list_rename_by_class <-list_node_by_class
-    
-    
-    y_off_base= -8
-    
-
-    
-    tree_with_group <- groupOTU(tree440, list_node_by_class)
-
-    
-
-        
-    subframe_of_nodes <- d440[d440$isTip=="FALSE",]
-    cc_nodss90 <- func.create.cc_nodss90(subframe_of_nodes)
-    cc_nodss80 <- func.create.cc_nodss80(subframe_of_nodes)
-    cc_nodss70 <- func.create.cc_nodss70(subframe_of_nodes)
-    
-    
-    #create array of number of nodes of each type for the whole tree
-    df_count_FULL_tree_populations <- data.frame(idx = 1:length(dx_rx_types1_short),
-                type = dx_rx_types1_short,
-                count = rep(0, length(dx_rx_types1_short))
-                )
-    
-    for (opt in dx_rx_types1){
-        indx <- which(dx_rx_types1_short == opt)
-        df_count_FULL_tree_populations[indx,'count'] <- length(list_id_by_class[[opt]])-1
-    }
- 
-    
-    tree_with_group_CPY <- groupOTU(tree440, list_rename_by_class)
-    
-
-    
-    levels_groups <- levels(ggtree(tree_with_group_CPY)$data$group)
-    
-    
-    
-   
-    
-    tree_TRY <- ggtree(tree_with_group_CPY,aes(color=new_class, size=p_val_new),ladderize=laderize_flag,
-                  ) #size=p_val
-    
-     new_colors_list<- func.create.new_colors_list(FDR_perc,tree_TRY,tree_with_group,no_name,tree_size)
-    
-    if (no_name %in% new_colors_list) {
-        flag_no_name <- 1
-    } else {
-        flag_no_name <- 0
-    }
-    
-    tree_TRY$data$new_class <- new_colors_list
-
-    
-    op_list <- c(paste0("p>",FDR_perc ), 
-             paste0(paste0(0.5*FDR_perc,"<p<="),FDR_perc),
-             paste0("p<=",0.5*FDR_perc ))
-    
-    p_list_of_pairs<- func.create.p_list_of_pairs(list_node_by_class,d440,dx_rx_types1_short,
-                                            cc_nodss,tree_with_group,FDR_perc,tree, cc_tipss,
-                                            tree_TRY,tree_size,no_name,simulate.p.value)
-
-    
-    p_PAIRS_pval_list <- func.create.p_val_list_FROM_LIST(FDR_perc,tree_TRY,p_list_of_pairs,op_list)
-    
-    
-
-    tree_TRY$data$p_val_new <-  p_PAIRS_pval_list 
-
-    tree_TRY$data$p_val_new <- factor(tree_TRY$data$p_val_new,                 # Relevel group factor
-                         levels = op_list)
-
-    
-    if (FLAG_BULK_DISPLAY== TRUE){
-           
-        
-        for (index_high in 1:how_many_hi) {
-            list_high_for <- lists_list_hi[[index_high]]
-            #nam_high <- paste('high',as.character(index_high))
-            if (index_high==1) {
-                tree_TRY$data$'high1' <-  list_high_for 
-                #tree_TRY$data$high1 <- factor(tree_TRY$data$high1,                 # Relevel group factor
-                 #        levels = c(TRUE,FALSE))
-            } else {
-                if (index_high==2) {
-                   tree_TRY$data$'high2' <-  list_high_for 
-                    #tree_TRY$data$high2 <- factor(tree_TRY$data$high2,                 # Relevel group factor
-                    #     levels = c(TRUE,FALSE)) 
-                } else {
-                    if (index_high==3) {
-                   tree_TRY$data$'high3' <-  list_high_for 
-                #    tree_TRY$data$high3 <- factor(tree_TRY$data$high3,                 # Relevel group factor
-                #         levels = c(TRUE,FALSE)) 
-                    } else {
-                        stop ("Too many highlight options. Only 3 are supported")
-                    }
-                }
-            
-            
-            }
-   
-        }
-
-    #tree_TRY$data$high_id <-  list_high_with_id 
-    #tree_TRY$data$high_id <- factor(tree_TRY$data$high_id,                 # Relevel group factor
-    #                     levels = unique(list_high_with_id))
-    }
-    
-    tree_TRY1<- tree_TRY
-    
-        
+  ##############################
   
-    
-    
-       #rotate tree if required
-    
-    if (rotate_flag %in% c("RX_first", "FRAC_first") ) {
- 
-        list_weight_dx.rx <- rotation_params1[['list_weight_dx.rx']]
-        list_weight_frac <- rotation_params2[['list_weight_dx.rx']]
-        TREE_OTU_dx.rx  <- rotation_params1[['TREE_OTU_dx.rx']]
-        TREE_OTU_frac <- rotation_params2[['TREE_OTU_dx.rx']]
-    }
-    
-    if (rotate_flag =="RX_first"){
-        
-
-        
-
-        tree_TRY2 <- func.rotate.tree.based.on.weights (tree_TRY1,list_weight_dx.rx,list_weight_frac,
-                                    TREE_OTU_dx.rx,TREE_OTU_frac,tree_size)
- 
-        
-        } else if (rotate_flag =="FRAC_first"){
-        
-            tree_TRY2 <- func.rotate.tree.based.on.weights (tree_TRY1,list_weight_frac,list_weight_dx.rx,
-                                    TREE_OTU_frac,TREE_OTU_dx.rx,tree_size)
-        } else {
-        
-            tree_TRY2 <- tree_TRY1
-        }
-    
-       #tree with short tips if required
-        pr440_short_tips_TRY <- tree_TRY2 #tree_TRY
-    
-        if (flag_short_tips == TRUE) {
-        for(i in cc_tipss) {
-            par <- pr440_short_tips_TRY$data$parent[i]
-            parX <- pr440_short_tips_TRY$data$x[par]
-            pr440_short_tips_TRY$data[pr440_short_tips_TRY$data$node[i], "x"] = parX +tips_length
-        }
-    
-        if (debug_mode== TRUE) {
-            print("##DEBUG##")
-            print("flag_short_tips is")
-            print(flag_short_tips)
-        
-        }
-    } 
- 
-    
-    
-        #make column for bootstrap values only in the tree, used in display
-    zs =rep(0, tree_size)
-    pr440_short_tips_TRY$data$boot_val <-  zs
-    for (i in 1:tree_size) {
- 
-        if (i %in% cc_tipss) {
-            pr440_short_tips_TRY$data$boot_val[i] = 0
-        } else {
-            pr440_short_tips_TRY$data$boot_val[i] =pr440_short_tips_TRY$data$label[i]
-        }
-    }
-    
-    cls_renaming_list_with_no_name <- c(cls_renaming_list,no_name)
-    
-    
-    if (flag_no_name== 1) {
-
-        fin_color_list <- cls_renaming_list_with_no_name
-    } else {
-
-        fin_color_list <- cls_renaming_list
-    }
-    
-
-    
-
-    
-     pr440_short_tips_TRY$data$new_class <- factor(pr440_short_tips_TRY$data$new_class,                 # Relevel group factor
-                         levels = unique(dx_rx_types1_short))
-    
-
-    
-    
-    list_of_sizes <- c(1,  1.6,  2.2)*edge_width_multiplier
-    
-
-    pr440_short_tips_TRY_new <- pr440_short_tips_TRY + scale_color_manual(values=colors_scale1) + 
-    scale_size_manual(values=list_of_sizes)
-    
-    
-    
-        
-    t<- pr440_short_tips_TRY_new
-
-    #Add bootstrap values to the tree if required
-
-   
-    x_range_min = min(pr440_short_tips_TRY_new$data$x)
-    x_range_max = max(pr440_short_tips_TRY_new$data$x)
-    
-    square_size_legend <- size_font_legend_box # 30  #16
-    text_legend_title_size <- size_font_legend_title # 50 #30
-    text_legend_size <- size_font_legend_text #35 # 25
-    
-    size_90 <- 26
-    size_80 <- 24
-    size_70 <- 22
-    
-    if (show_boot_flag == TRUE) {
-
-    pr440_short_tips_TRY_new_with_boot <- pr440_short_tips_TRY_new + 
-    geom_nodepoint(position=position_nudge(x = 0.005, y = 0),aes(subset = boot_val >= 0.9 ),size = size_90,
-               shape=24, fill="grey36",colour = "grey20",show.legend = FALSE,alpha=1/2) + 
-    geom_nodepoint(position=position_nudge(x = 0.005, y = 0),aes(subset = boot_val >= 0.8 & boot_val < 0.9 ),size = size_80,
-               shape=24, fill="grey36",colour = "grey20",show.legend = FALSE,alpha=1/2) + #orchid3
-    geom_nodepoint(position=position_nudge(x = 0.005, y = 0),aes(subset = boot_val >= 0.7 & boot_val < 0.8),size = size_70,
-               shape=24, fill="grey36", colour = "grey20",show.legend = FALSE,alpha=1/2)  #orchid1 #"#b5e521"
-        
-    } else {
-
-        pr440_short_tips_TRY_new_with_boot <- pr440_short_tips_TRY_new
-    }
-    
-    
-    
-        
-    # add legends to the tree
-    group_display_title <- "Cell type"
-    if (exists('title_flag')) {
-        if (title_flag== TRUE) {
-            group_display_title <- title_replace
-        }
-    } 
-    
-
-    
-
-    new_base <-0
-    
-    pr440_short_tips_TRY_new_with_boot<- pr440_short_tips_TRY_new_with_boot#+geom_treescale(x=-20,y=0) 
-
-    
-    pr440_short_tips_TRY_new_with_boot_more1 <- pr440_short_tips_TRY_new_with_boot
-    
-
-    pr440_short_tips_TRY_new_with_boot_more1 <- pr440_short_tips_TRY_new_with_boot_more1 + 
-    layout_dendrogram() +
-    guides(colour = guide_legend(title = group_display_title, 
-                                 override.aes = list(size = square_size_legend*1.5, alpha = 1,linetype=12, linewidth=30),
-                                breaks = levels(pr440_short_tips_TRY_new_with_boot_more1$data$group)),
-       size = guide_legend(title = "p value"),
-       shape = guide_legend()) + 
-    theme(legend.text = element_text(size = text_legend_size*3.1,margin = margin(t = 40, b=40, unit = "pt")),
-      legend.title = element_text(size = text_legend_title_size*3.1,face = "bold"),
-     legend.spacing.y = unit(3, 'cm')) +
-    scale_y_reverse()  +
-    geom_rootedge() 
-    
-    
-   
-    
-
-    
-    x_range_min <-  min(pr440_short_tips_TRY_new_with_boot_more1$data$x)
-    x_range_max <-  max(pr440_short_tips_TRY_new_with_boot_more1$data$x)
-    x_off_base<-  x_range_min*0.6  -man_adj_second_legend -3 #-0.9 #-0.76
-
-    # highlight bullk if required
-    
-    
-        
-    pr440_short_tips_TRY_new_with_boot_more1 <- pr440_short_tips_TRY_new_with_boot_more1 +
-    geom_tiplab(size =size_tip_text,angle=90,hjust=1,,show.legend = FALSE) #+
-    #guides(color = guide_legend(override.aes = list(label = "U", size = 7)))
-     #guides(color = guide_legend(override.aes = list(label = "\u25A0", size = 7)))
-    
-        if (FLAG_BULK_DISPLAY ==TRUE) {
-        
-    b <- 0.28 #+ ((100-width)*0.005)#0.45 #0.45 + (height-60)*0.04
-    a <-   0.017 + ((100-height)*0.0004) #0.035 + (height-60)*(-0.002) #0.15
-    x_adj_hi <- 0.017  + ((100-height)*0.0001)#0.025
-
-    if (x_adj_hi<=0) {
-        x_adj_hi <-0.01
-    }
-    if (a<=0) {
-        a<-0.01
-    }
-    if (b<=0) {
-        b<-0.01
-    }
-    
-    b<- 0.45 #0.15 #0.45 /1.5 * (x_range_min *(-1))
-
-    a<- 0.035 /1.5 * (x_range_min *(-1)) *man_multiply_elipse #0.01 #0.035
-     x_adj_hi <- 0 #0.017
-        
-    up_offset<- -3
-    a<- 0.02
-    
-    y_off_base<-  -8
-    x_off_base<- x_range_min +0.1 #x_range_min*0.6 -man_adj_second_legend  #-0.9 #-0.76
-            
-
-            
-            
-        for (index_high in 1:how_many_hi) {
-            if (index_high==1) {
-                high_nodes_table1 <- pr440_short_tips_TRY$data[tree_TRY$data$high1 == TRUE,]
-   
-                pr440_short_tips_TRY_new_with_boot_more1 <- pr440_short_tips_TRY_new_with_boot_more1 +
-            geom_ellipse(data=high_nodes_table1,
-                         aes(x0 = (max(pr440_short_tips_TRY$data[,'x'])-x)*(-1)+x_adj_hi +man_adjust_elipse+0.01, 
-                                           y0 = y, a = a, b = b, angle = 0),
-                    fill=high_color_list[[1]],alpha=0.5,linetype="blank",show.legend=FALSE)
-            } else {
-                if (index_high==2) {
-                    high_nodes_table2 <- pr440_short_tips_TRY$data[tree_TRY$data$high2 == TRUE,]
-                    pr440_short_tips_TRY_new_with_boot_more1 <- pr440_short_tips_TRY_new_with_boot_more1 +
-                    geom_ellipse(data=high_nodes_table2,
-                         aes(x0 = (max(pr440_short_tips_TRY$data[,'x'])-x)*(-1)+x_adj_hi +man_adjust_elipse+0.005, 
-                                           y0 = y, a = a, b = b, angle = 0),
-                        fill=high_color_list[[2]],alpha=0.5,linetype="blank",show.legend=FALSE)
-                } else {
-                    if (index_high==3) {
-                        high_nodes_table3 <- pr440_short_tips_TRY$data[tree_TRY$data$high3 == TRUE,]
-                        pr440_short_tips_TRY_new_with_boot_more1 <- pr440_short_tips_TRY_new_with_boot_more1 +
-                            geom_ellipse(data=high_nodes_table3,
-                             aes(x0 = (max(pr440_short_tips_TRY$data[,'x'])-x)*(-1)+x_adj_hi +man_adjust_elipse+0.005, 
-                                           y0 = y, a = a, b = b, angle = 0),
-                            fill=high_color_list[[3]],alpha=0.5,linetype="blank",show.legend=FALSE)
-                    }
-                }
-            }
-            
-        }
-                 
-
-    
-            
-    p<- pr440_short_tips_TRY_new_with_boot_more1
-    p1 <- p$layers[1]
-    p2 <- p$layers[2]
-    p7 <- p$layers[7]
-    p$layers[2] <- p7 
-    p$layers[7] <- p2
-        
-
-            
-    stair <- 0.085
-    multiple_high_up_offset <- stair*(how_many_hi-1)*(-1)
-            
-        for (index_high in 1:how_many_hi) {
-            
-            multiple_high_down_offset <- (index_high-1)*stair
-            if (index_high==1) {
-                p <- p +
-            annotate(
-            geom = "text", 
-            label = high_title_list[[index_high]],  
-                size = round(size_font_legend_title*man_multiply_second_legend), 
-                x = x_off_base+multiple_high_up_offset+multiple_high_down_offset,
-                y = y_off_base,  fontface = "bold"
-              )
-            }
-            p <- p +
-         annotate(
-        geom = "text", 
-        label = high_label_list[[index_high]],  
-             size = round(size_font_legend_text*man_multiply_second_legend_text), 
-             x = x_off_base+0.035+multiple_high_up_offset+multiple_high_down_offset,
-             y = y_off_base-2,  
-      )+
-        geom_ellipse(aes(x0 = x_off_base+0.035+multiple_high_up_offset+multiple_high_down_offset ,
-                         y0 = y_off_base+1.7, a = a, b = b, angle = 0),
-            fill=high_color_list[[index_high]],alpha=0.5,linetype="blank",show.legend=FALSE)
-            
-          new_base <- 0.035+multiple_high_up_offset+multiple_high_down_offset  
-            
-            
-        }
-    } else {
- 
-        pr440_short_tips_TRY_new_with_boot_more1 <-pr440_short_tips_TRY_new_with_boot_more1 +
-        geom_tiplab(size =size_tip_text,angle=90,hjust=1,,show.legend = FALSE)
-        p <- pr440_short_tips_TRY_new_with_boot_more1
-    }
-    
-
-    
-        #add second legend for bootstrap and highlight if required
-    
-    second_legend_title_font_size<-  round(text_legend_title_size/3,digits = 0)  #16 # 10.5
-    second_text_legend_size<- round(text_legend_size/3,digits = 0) #8.6
-
-    boot_spacing_legend<- 0.04+   man_space_second_legend
-    
-    
-       boot_spacing_legend<- 0.04+    man_space_second_legend
-    
-
-    #second_legend_title_font_size
-    
-        if (show_boot_flag == TRUE) {
-    p<- p+
-     annotate(
-    geom = "text", 
-    label = "Bootstrap",  size = size_font_legend_title, x = x_off_base+ new_base +0.07, y = y_off_base,  fontface = "bold"
-      )+ 
- annotate(
-    geom = "text", 
-    label = ">70%",  size = size_font_legend_text, x = x_off_base+ new_base +0.08+ boot_spacing_legend, y = y_off_base-2,  
-  )+
- annotate(
-    geom = "text", 
-    label = ">80%",  size = size_font_legend_text, x =  x_off_base+ new_base +0.08+ boot_spacing_legend*2, y = y_off_base-2,  
-  )+
- annotate(
-    geom = "text", 
-    label = ">90%",  size = size_font_legend_text, x = x_off_base+ new_base +0.08+ boot_spacing_legend*3, y = y_off_base-2,  
-  ) +
- annotate(
-    geom = "point", 
-    shape=24,  size = size_90, x = x_off_base+ new_base +0.08+ boot_spacing_legend, y = y_off_base+1,  fill="grey36",colour = "grey20",alpha=1/2,
-  )+
- annotate(
-    geom = "point", 
-    shape=24,  size = size_80, x = x_off_base+ new_base +0.08+ boot_spacing_legend*2, y = y_off_base+1,  fill="grey36",colour = "grey20",alpha=1/2,
-  ) +
- annotate(
-    geom = "point", 
-    shape=24,  size = size_70, x = x_off_base+ new_base +0.08+ boot_spacing_legend*3, y = y_off_base+1,  fill="grey36",colour = "grey20",alpha=1/2,
-  ) 
-            
-    }
- p<- p+ xlim(x_range_max+0.02,x_range_min-0.02)
-    
-    
-     ggsave(out_file_path, width = width, height = height, units = "cm", limitsize = FALSE)
-    
-    out <- c()
-    out[['p']] <- p
-    out <- out
-    
-}
-
-
-func.make.highlight.params.NEW <- function(yaml_file,title.id,ids_list,tree440,readfile440,hi_def,debug_mode) {
+  
+  func.make.highlight.params.NEW <- function(yaml_file,title.id,ids_list,tree440,readfile440,hi_def,debug_mode) {
     
     
 
@@ -2502,12 +2721,6 @@ func.make.list_id_by_class <- function(cls_num, cls_renaming_list,yaml_file,
                     is_in <- FALSE
                 }
                 
-
-     
-                
-
-
-
                 is_in_class <- c(is_in_class,is_in)
 
 
@@ -2630,7 +2843,6 @@ func.calc.rotation.definitions <- function(rot1,rot2,yaml_file,title.id,ids_list
     l<- l
 }
 
-
 #read yaml file
 func.read_yaml <- function(conf_yaml_path){
     check <- file.exists(conf_yaml_path)
@@ -2652,14 +2864,21 @@ func.read_yaml <- function(conf_yaml_path){
 
 
 fix.readfile440.with.missing.leaves<- function(readfile440,title.id,tree440,ids_list,no_name,
-                                               id_tip_trim_flag,id_tip_trim_start,id_tip_trim_end) {
+                                               id_tip_trim_flag,id_tip_trim_start,id_tip_trim_end,id_tip_prefix,debug_mode) {
    
+    
 
     readfile440n <- readfile440
     tree_data <- ggtree(tree440)$data
     leaves_id_from_tree1 <- tree_data[tree_data$isTip==TRUE,'label']
     leaves_id_from_tree <- as.list(leaves_id_from_tree1['label'])$label
     
+
+    
+    if (debug_mode== TRUE) {
+        print("leaves_id_from_tree is")
+        print(leaves_id_from_tree)
+    }
 
 
     for (id in leaves_id_from_tree) {
@@ -2689,26 +2908,45 @@ fix.readfile440.with.missing.leaves<- function(readfile440,title.id,tree440,ids_
         }
     } 
     
+    if (id_tip_trim_flag== TRUE) {
+        print("id_tip_trim_flag is TRUE--> adding prefix to cell name")
+        if (debug_mode== TRUE){
+            print("cell names originally from")
+            print(ids_list)
+            print("now have the prefix from id_tip_prefix")
+            print(id_tip_prefix)
+        }
+        
+    }
+    
 
     for (i in ids_list) {
         if (i=="root"){
             next
         }
         if (id_tip_trim_flag== TRUE) {
-            temp <- paste0("ID",i)
+            temp <- paste0(id_tip_prefix,i)
         } else {
             temp <- i
         }
         
+        
         if (!(temp %in% leaves_id_from_tree)) {
+            
 
             vec <- readfile440n[[title.id]]
 
             hw <- which (vec==i)
+            if (hw ==1) {
+                print(paste0(paste0("WARNING: cant find ",i)," in csv"))
+                print(vec)
+            }
 
             readfile440n <- readfile440n[-c(hw), ]
         }
     }
+    
+    
     
 
     readfile440_new <- readfile440n
@@ -2847,8 +3085,6 @@ func.create.list_node_by_class <- function(dx_rx_types1_short,list_id_by_class,
     for(i in 1:length(dx_rx_types1_short)) {
 
         name<-dx_rx_types1_short[i]
-
-        
   
  
         subframe<-dxdf440_dataf[is.element(dxdf440_dataf[[classication]], dx_rx_types1_short[i]),]
@@ -2875,8 +3111,6 @@ func.create.list_node_by_class <- function(dx_rx_types1_short,list_id_by_class,
         }
         vec <- vec2
 
- 
-        
         vec1 <- vec
 
         
@@ -2904,6 +3138,7 @@ func.create.list_node_by_class <- function(dx_rx_types1_short,list_id_by_class,
     
     list_node_by_class<- list_node_by_class
 }
+
 
 
 func.create.convert_id_to_node <- function(tree_size,d440,cc_totss){
@@ -2939,6 +3174,7 @@ func.create.cc_nodss90 <- function(subframe_of_nodes){
 }
 
 
+
 #list of nodes ids for nodes with bootstrap greater than 0.8 and smaller than 0.9
 func.create.cc_nodss80 <- function(subframe_of_nodes){
     subframe_of_nodes80<- subframe_of_nodes[subframe_of_nodes$label >=0.8 & subframe_of_nodes$label <0.9,]
@@ -2947,7 +3183,6 @@ func.create.cc_nodss80 <- function(subframe_of_nodes){
     cc_nodss80 <-cc_nods80[[1]]
 }
 
-
 #list of nodes ids for nodes with bootstrap greater than 0.7 and smaller than 0.8
 func.create.cc_nodss70 <- function(subframe_of_nodes){
     subframe_of_nodes70<- subframe_of_nodes[subframe_of_nodes$label >=0.7 & subframe_of_nodes$label <0.8,]
@@ -2955,7 +3190,6 @@ func.create.cc_nodss70 <- function(subframe_of_nodes){
     cc_nods70=c(list_nodes70)
     cc_nodss70 <-cc_nods70[[1]]
 }
-
 
 func.create.new_colors_list<- function(FDR_perc,tree_TRY,tree_with_group,no_name,tree_size){
     #Define color to each node in the tree
@@ -3143,8 +3377,7 @@ func.make.mapping.list<- function(cls_num,cls_list,yaml_file,title.id,ids_list,r
 
     if(debug_mode==TRUE) {
         print("In func.make.mapping.list")
-        #print("ids_list is is")
-        #print(ids_list)
+
     }
     
 
@@ -3205,7 +3438,7 @@ func.make.mapping.list<- function(cls_num,cls_list,yaml_file,title.id,ids_list,r
 }
     
 	
-func.check.if.id.in.class.NEW <- function(class_name,id,yaml_file,readfile,title.id,cls_list) {
+	func.check.if.id.in.class.NEW <- function(class_name,id,yaml_file,readfile,title.id,cls_list) {
     lin <- readfile[which(readfile[title.id] ==id ), ]
 
     
@@ -3229,7 +3462,6 @@ func.check.if.id.in.class.NEW <- function(class_name,id,yaml_file,readfile,title
     
     ans<- ans
 }
-
 
 #make list of weights for each nodes for rotation
 func.set.list_weight <- function(types_list){
@@ -3264,6 +3496,23 @@ func.rotate.tree.based.on.weights <- function(tree_TRY,list_weight_dx.rx,list_we
     
     if (NA %in% list_weights_for_nodes_dx.rx) {
         print("Error: rotation classes do not cover all tips")
+        print("weight list 1 is")
+        print(list_weights_for_nodes_dx.rx)
+        print("cells without weights are")
+        u <- which(is.na(list_weights_for_nodes_dx.rx))
+        print("which are")
+        print(tree_TRY$data$label[u])
+        print(tree_TRY$data$group[u])
+        print("NA weights are rewritten to 0, please verify yml rotation definitions")
+
+        idxx <-1
+        for (ww in list_weights_for_nodes_dx.rx) {
+            if (is.na(ww)){
+                list_weights_for_nodes_dx.rx[idxx] <-0
+            }
+            idxx <- idxx+1
+        }
+
     }
         
     tree_TRY$data$weight1 <- list_weights_for_nodes_dx.rx
@@ -3299,15 +3548,22 @@ func.rotate.tree.based.on.weights <- function(tree_TRY,list_weight_dx.rx,list_we
                     children_side_new[1] <- "r"
                     children_side_new[2] <- "l"   
                 } else {
-                    if (children_weights_SECOND[1] <children_weights_SECOND[2]){
-                        children_side_new[1] <- "l"
-                        children_side_new[2] <- "r"    
-                    } else if (children_weights_SECOND[1] >children_weights_SECOND[2]){
-                        children_side_new[1] <- "r"
-                        children_side_new[2] <- "l"  
-                    } else {
-                        children_side_new[1] <-children_side_orig[1]
-                        children_side_new[2] <-children_side_orig[2]
+
+                    if (is.na(children_weights_SECOND[1]) | is.na(children_weights_SECOND[2])) {
+                            children_side_new[1] <-children_side_orig[1]
+                            children_side_new[2] <-children_side_orig[2]
+                        } else {
+     
+                        if (children_weights_SECOND[1] <children_weights_SECOND[2]){
+                            children_side_new[1] <- "l"
+                            children_side_new[2] <- "r"    
+                        } else if (children_weights_SECOND[1] >children_weights_SECOND[2]){
+                            children_side_new[1] <- "r"
+                            children_side_new[2] <- "l"  
+                        } else {
+                            children_side_new[1] <-children_side_orig[1]
+                            children_side_new[2] <-children_side_orig[2]
+                        }
                     }
                 }
                 if (!children_side_new[1] == children_side_orig[1]){
@@ -3318,6 +3574,7 @@ func.rotate.tree.based.on.weights <- function(tree_TRY,list_weight_dx.rx,list_we
     }   
     tree_return <- tree_return
 }
+
 
 func.create.weight_list <- function(tree_TRY,weights_list,TREE_OTU_class,tree_size){
     #defining weitghs to tips for rotation
