@@ -36,7 +36,8 @@ func.print.lineage.tree <- function(conf_yaml_path,
                                   out_file_name_bash=NA,
                                   out_file_type= NA,
                                    heat_maps_titles_angles_vector= NA,
-                                   man_offset_second_legend=0) {
+                                   man_offset_second_legend=0,
+					units_out="cm") {
   
     yaml_file<- func.read_yaml(conf_yaml_path)
     
@@ -49,7 +50,7 @@ func.print.lineage.tree <- function(conf_yaml_path,
     out_index <-1
     
 
-    units_out <- 'cm'
+    #units_out <- 'cm'
     if (a_4_output== TRUE) {
         print("output in A4 format")
         width <- 297
